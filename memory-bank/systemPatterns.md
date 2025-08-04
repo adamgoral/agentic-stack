@@ -6,15 +6,16 @@
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
 │   Frontend  │────▶│   Backend    │────▶│    Redis    │
-│  (Next.js)  │ SSE │  (FastAPI)   │     │   (State)   │
+│  (Next.js)  │HTTP │  (FastAPI)   │     │   (State)   │
+│ +CopilotKit │     │   AG-UI      │     │             │
 └─────────────┘     └──────────────┘     └─────────────┘
-                            │
-                    ┌───────┴────────┐
-                    ▼                ▼
-            ┌──────────────┐  ┌──────────────┐
-            │  MCP Servers │  │  A2A Agents  │
-            │ (Tools)      │  │  (Workers)   │
-            └──────────────┘  └──────────────┘
+        │                   │
+        │           ┌───────┴────────┐
+        ▼           ▼                ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ /api/copilot │  │  MCP Servers │  │  A2A Agents  │
+│   (proxy)    │  │   (Tools)    │  │  (Workers)   │
+└──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 ## Key Design Patterns
@@ -24,6 +25,8 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - `protocols/a2a_manager.py`: Manages A2A communication
 - `main.py`: AG-UI endpoint handlers
 - `agents/orchestrator.py`: MCP client connections
+- `frontend/app/api/copilotkit/route.ts`: CopilotKit to AG-UI proxy
+- `frontend/components/providers/CopilotProvider.tsx`: UI integration
 
 ### 2. Dependency Injection
 - Use of `StateDeps` for AG-UI state management
@@ -65,9 +68,9 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 
 ### 1. Request Flow
 ```python
-User Request → AG-UI Endpoint → Orchestrator.run() 
-→ Task Analysis → A2A Delegation → MCP Tool Calls 
-→ Result Assembly → AG-UI Response → User
+User (CopilotKit UI) → /api/copilotkit → AgnoAgent → AG-UI Endpoint 
+→ Orchestrator.run() → Task Analysis → A2A Delegation → MCP Tool Calls 
+→ Result Assembly → AG-UI Response → CopilotKit → User
 ```
 
 ### 2. State Management

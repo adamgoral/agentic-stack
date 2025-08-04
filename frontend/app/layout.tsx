@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { CopilotProvider } from '@/components/providers/CopilotProvider';
 import './globals.css';
 
 const inter = Inter({ 
@@ -24,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        {children}
+        <CopilotProvider>
+          {children}
+        </CopilotProvider>
       </body>
     </html>
   );

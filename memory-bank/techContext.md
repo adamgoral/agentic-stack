@@ -12,7 +12,12 @@
 ### Frontend Stack
 - **Next.js 14+**: React framework with App Router
 - **TypeScript**: Strict type safety configuration
-- **CopilotKit**: AG-UI protocol client (packages installed)
+- **CopilotKit**: AG-UI protocol client (fully integrated)
+  - @copilotkit/react-core: Provider component
+  - @copilotkit/react-ui: Popup UI component
+  - @copilotkit/runtime: Backend integration
+  - @copilotkit/runtime-client-gql: GraphQL client
+  - @ag-ui/agno: AG-UI agent connector
 - **Tailwind CSS**: Styling with custom theme and animations
 - **React 18.3**: Latest React with concurrent features
 - **react-markdown**: Markdown rendering in chat
@@ -60,6 +65,7 @@ BACKEND_URL=http://localhost:8000
 FRONTEND_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WS_URL=ws://localhost:8000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000/ag-ui  # CopilotKit to AG-UI endpoint
 
 # MCP Servers
 MCP_PYTHON_EXECUTOR_URL=http://localhost:3002
@@ -117,6 +123,9 @@ mcp-server-fastmcp>=0.1.0
     "react-dom": "^18.3.1",
     "@copilotkit/react-core": "^1.0.0",
     "@copilotkit/react-ui": "^1.0.0",
+    "@copilotkit/runtime": "^1.0.0",
+    "@copilotkit/runtime-client-gql": "^1.0.0",
+    "@ag-ui/agno": "^0.1.0",
     "react-markdown": "^9.0.0",
     "remark-gfm": "^4.0.0",
     "react-syntax-highlighter": "^15.6.1",
