@@ -1,0 +1,202 @@
+version: '3.8'
+
+services:
+  # Infrastructure Services
+  redis:
+    image: redis:7-alpine
+    container_name: agentic-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: agentic-postgres
+    environment:
+      POSTGRES_DB: agentic_stack
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-agentpass123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Observability (Optional)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: agentic-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    profiles:
+      - observability
+
+  # Main Orchestrator
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: agentic-orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://agent:${DB_PASSWORD:-agentpass123}@postgres:5432/agentic_stack
+      - OTLP_ENDPOINT=jaeger:4317
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENV=${ENV:-development}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./backend:/app
+    command: python main.py
+
+  # Specialized Agents
+  research-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: agentic-research-agent
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8001
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+    command: python -m agents.research_agent --port 8001
+
+  code-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: agentic-code-agent
+    ports:
+      - "8002:8002"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8002
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+    command: python -m agents.code_agent --port 8002
+
+  analytics-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: agentic-analytics-agent
+    ports:
+      - "8003:8003"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://agent:${DB_PASSWORD:-agentpass123}@postgres:5432/agentic_stack
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8003
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./backend:/app
+    command: python -m agents.analytics_agent --port 8003
+
+  # MCP Servers
+  mcp-web-search:
+    build:
+      context: ./backend/mcp_servers/web_search
+      dockerfile: Dockerfile
+    container_name: agentic-mcp-web-search
+    ports:
+      - "3001:3001"
+    environment:
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mcp-python-executor:
+    build:
+      context: ./backend/mcp_servers/python_executor
+      dockerfile: Dockerfile
+    container_name: agentic-mcp-python-executor
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MAX_EXECUTION_TIME=30
+      - MAX_MEMORY_MB=512
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_ADMIN
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: agentic-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: agentic-network
+    driver: bridge
