@@ -101,17 +101,57 @@ LOG_LEVEL=INFO
 
 ### Python Dependencies (backend/requirements.txt)
 ```
-pydantic-ai-slim[a2a,ag-ui]>=0.1.0
+# Core Framework
+pydantic-ai[all]>=0.4.11
+fasta2a>=0.2.0
 fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
+uvicorn[standard]>=0.30.0
+starlette>=0.37.0
+
+# AI Model Providers
+openai>=1.35.0
+anthropic>=0.25.0
+
+# MCP Support
+mcp>=0.1.0
+httpx>=0.27.0
+
+# Storage & Caching
 redis>=5.0.0
-httpx>=0.25.0
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0
+alembic>=1.13.0
+
+# State Management
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+
+# Monitoring & Observability
+opentelemetry-api>=1.24.0
+opentelemetry-sdk>=1.24.0
+opentelemetry-instrumentation-fastapi>=0.45b0
+opentelemetry-exporter-otlp>=1.24.0
+logfire>=0.30.0
+
+# Utilities
 python-dotenv>=1.0.0
-opentelemetry-api>=1.29.0
-opentelemetry-sdk>=1.29.0
-opentelemetry-instrumentation-fastapi>=0.51b0
-logfire>=2.0.0
-mcp-server-fastmcp>=0.1.0
+pyyaml>=6.0.0
+python-multipart>=0.0.9
+aiofiles>=23.2.0
+
+# Testing
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+pytest-cov>=5.0.0
+httpx>=0.27.0
+faker>=25.0.0
+```
+
+### MCP Server Dependencies
+```
+# MCP Python Executor & Web Search
+fastmcp>=2.11.1
+httpx>=0.25.0
 ```
 
 ### Node Dependencies (frontend/package.json)

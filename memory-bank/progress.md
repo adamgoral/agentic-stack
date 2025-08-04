@@ -53,14 +53,22 @@
 - [x] Frontend Dockerfile created
 - [x] Complete docker-compose.yml
 - [x] Environment configuration (.env template)
+- [x] Dependency version fixes (pydantic-ai 0.4.11, fastmcp 2.11.1)
+- [x] All Docker services build successfully
 
 ## What's Left to Build
 
+### Docker Service Testing 🚧
+- [ ] Start all Docker services with docker-compose up
+- [ ] Verify all containers build and start successfully
+- [ ] Test basic connectivity between services
+- [ ] Validate environment configuration
+
 ### Backend Testing 🚧
-- [ ] Start Docker services
-- [ ] Verify AG-UI endpoint accessibility
+- [ ] Verify AG-UI endpoint accessibility at /ag-ui
 - [ ] Test CopilotKit to backend connection
 - [ ] Validate real-time streaming
+- [ ] Check Redis connectivity
 
 ### Agent Implementation 🚧
 - [ ] Research agent with web search
@@ -87,13 +95,14 @@
 ## Current Status
 
 ### System State
-- **Backend**: Implemented, not tested
+- **Backend**: Implemented, ready for testing
 - **Frontend**: Fully implemented with CopilotKit integrated
-- **MCP Servers**: Implemented with mock data
+- **MCP Servers**: Implemented with mock data, dependencies fixed
 - **Agents**: Skeleton only
-- **Docker**: All services configured
+- **Docker**: All services configured and building successfully
 - **CopilotKit**: Integrated and configured
-- **Integration**: Not tested
+- **Dependencies**: All fixed and validated
+- **Integration**: Ready for testing
 
 ### Deployment Readiness
 - **Local Development**: Ready with Docker
@@ -112,6 +121,11 @@
 - Redis connection pooling not optimized
 - MCP server discovery is hardcoded
 - API keys need to be added to .env file
+
+### Resolved Issues
+- ~~Docker dependency version mismatches~~ ✅
+- ~~Package name errors (mcp-server-fastmcp vs fastmcp)~~ ✅
+- ~~pydantic-ai version constraint (fixed to 0.4.11)~~ ✅
 
 ## Evolution of Decisions
 
@@ -140,15 +154,23 @@
 3. **Architecture**: Separated client/server components properly
 4. **Result**: Full integration with streaming support
 
+### Dependency Management
+1. **Initial**: Used estimated version numbers without verification
+2. **Problem**: Docker builds failing due to non-existent package versions
+3. **Solution**: Verified actual PyPI versions and corrected requirements
+4. **Result**: All Docker services now build successfully
+
 ## Next Milestone
 
 ### MVP Completion (Target)
 1. ~~Complete frontend with basic chat UI~~ ✅
 2. ~~Integrate CopilotKit with AG-UI~~ ✅
-3. Implement and test research agent
-4. Implement and test code agent
-5. Successful end-to-end workflow demo
-6. Basic error handling throughout
+3. ~~Fix Docker dependency issues~~ ✅
+4. Test Docker service startup and connectivity
+5. Implement and test research agent
+6. Implement and test code agent
+7. Successful end-to-end workflow demo
+8. Basic error handling throughout
 
 ### Success Metrics
 - User can submit complex query

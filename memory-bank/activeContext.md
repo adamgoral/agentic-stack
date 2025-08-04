@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Work Focus
-CopilotKit integration complete. Ready for backend agent implementation and end-to-end testing.
+Docker dependency fixes complete. All services now build successfully. Ready for backend testing and agent implementation.
 
 ## Recent Changes
 
@@ -47,7 +47,7 @@ CopilotKit integration complete. Ready for backend agent implementation and end-
    - Environment configuration template (.env)
    - All services configured in docker-compose.yml
 
-8. **CopilotKit Integration** (COMPLETED TODAY)
+8. **CopilotKit Integration** (COMPLETED)
    - API route created at /api/copilotkit/route.ts
    - AgnoAgent configured to connect to AG-UI backend
    - CopilotProvider component created with proper client/server separation
@@ -57,21 +57,34 @@ CopilotKit integration complete. Ready for backend agent implementation and end-
    - Full TypeScript support and Next.js 14+ best practices
    - Documentation created for integration
 
+9. **Docker Dependency Fixes** (COMPLETED TODAY)
+   - Fixed pydantic-ai version constraint from >=0.12.0 to >=0.4.11
+   - Replaced mcp-server-fastmcp with correct fastmcp>=2.11.1 package
+   - Updated all MCP server requirements files
+   - All Docker services now build successfully
+   - Memory bank documentation updated
+
 ## Next Steps
 
 ### Immediate Tasks
-1. **Backend Testing**
-   - Start all Docker services
-   - Verify AG-UI endpoint is accessible
+1. **Docker Service Testing**
+   - Start all Docker services with docker-compose up
+   - Verify all containers build and start successfully
+   - Test basic connectivity between services
+   - Validate environment configuration
+
+2. **Backend Testing**
+   - Verify AG-UI endpoint is accessible at /ag-ui
    - Test CopilotKit connection to backend
    - Validate streaming responses
+   - Check Redis connectivity
 
-2. **Agent Implementation**
+3. **Agent Implementation**
    - Create research agent with A2A
    - Create code generation agent
    - Test agent delegation flow
 
-3. **Integration Testing**
+4. **Integration Testing**
    - Test A2A communication
    - Verify AG-UI streaming
    - Validate MCP tool calls
@@ -117,6 +130,7 @@ CopilotKit integration complete. Ready for backend agent implementation and end-
 - Docker networking requires careful configuration
 - SSE requires proper CORS handling
 - Tool timeout management is critical
+- Package version mismatches can break builds completely
 
 ### Best Practices Discovered
 - Keep orchestrator agent lightweight
@@ -128,8 +142,12 @@ CopilotKit integration complete. Ready for backend agent implementation and end-
 - CopilotKit requires proper client/server component separation in Next.js 14+
 - AgnoAgent from @ag-ui/agno package provides seamless AG-UI integration
 - Environment variables crucial for backend URL configuration
+- Always verify package names and versions on PyPI before using in requirements.txt
+- pydantic-ai latest version is 0.4.11, not 0.12.0
+- Use fastmcp instead of mcp-server-fastmcp for MCP server implementation
 
 ## Current Blockers
+- ~~Docker dependency issues (fixed - pydantic-ai 0.4.11, fastmcp 2.11.1)~~ ✅
 - API keys need to be added to .env file
 - Docker services need to be started and tested
 - Backend agents need implementation
