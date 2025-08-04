@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --foreground-rgb: 0, 0, 0;
+    --background-start-rgb: 214, 219, 220;
+    --background-end-rgb: 255, 255, 255;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --foreground-rgb: 255, 255, 255;
+      --background-start-rgb: 0, 0, 0;
+      --background-end-rgb: 0, 0, 0;
+    }
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  /* Custom component styles for AG-UI protocol elements */
+  .ag-ui-container {
+    @apply rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900;
+  }
+
+  .ag-ui-header {
+    @apply flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800;
+  }
+
+  .ag-ui-content {
+    @apply p-4;
+  }
+
+  /* Chat interface styles */
+  .chat-message {
+    @apply mb-4 animate-slide-up rounded-lg p-4;
+  }
+
+  .chat-message-user {
+    @apply ml-auto max-w-[80%] bg-primary-500 text-white;
+  }
+
+  .chat-message-assistant {
+    @apply mr-auto max-w-[80%] bg-gray-100 dark:bg-gray-800;
+  }
+
+  .chat-message-system {
+    @apply mx-auto max-w-[90%] bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-200;
+  }
+
+  /* State visualization styles */
+  .state-node {
+    @apply rounded-lg border-2 border-gray-300 bg-white p-3 shadow-md transition-all hover:shadow-lg dark:border-gray-700 dark:bg-gray-800;
+  }
+
+  .state-node-active {
+    @apply border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20;
+  }
+
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 bg-transparent hover:bg-gray-100 focus:ring-gray-500 dark:border-gray-600 dark:hover:bg-gray-800;
+  }
+
+  /* Form elements */
+  .input {
+    @apply block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100;
+  }
+
+  .textarea {
+    @apply block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100;
+  }
+
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse rounded bg-gray-200 dark:bg-gray-700;
+  }
+
+  .spinner {
+    @apply h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600;
+  }
+}
+
+@layer utilities {
+  /* Custom utilities for fine-grained control */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
