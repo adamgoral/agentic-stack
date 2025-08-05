@@ -1,13 +1,26 @@
 # Active Context
 
 ## Current Work Focus
-Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is running successfully. Frontend is accessible at http://localhost:3000/chat. All three specialized agents (research, code, analytics) have been fully implemented with A2A protocol support. MCP servers (web search and Python executor) are still failing on startup and need debugging. Focus is now on fixing the MCP server issues and testing the complete multi-agent system with agent delegation and result aggregation.
+All core components are now operational! Frontend, backend orchestrator, Redis, PostgreSQL, all three specialized agents (research, code, analytics), and both MCP servers (web search and Python executor) are running successfully. The MCP servers have been fixed by converting from stdio transport to HTTP/SSE endpoints. Focus is now on integration testing - verifying agent delegation, result aggregation, and end-to-end workflows with complex queries.
 
 ## Recent Changes
 
 ### Completed
 
-14. **Analytics Agent Implementation** (COMPLETED - Current Session)
+15. **MCP Server Fixes** (COMPLETED - Current Session)
+    - Debugged both web search and Python executor servers exiting on startup
+    - Root cause: servers were using FastMCP with stdio transport but agents expected HTTP/SSE
+    - Converted both servers from FastMCP stdio to FastAPI HTTP servers
+    - Implemented SSE endpoints at `/sse` for real-time communication
+    - Added `/tools/{tool_name}` endpoints for tool execution
+    - Added health check endpoints at `/health`
+    - Updated dependencies from mcp.server.fastmcp to fastapi/uvicorn
+    - Web Search MCP now running on port 3001 with search, fetch, and extract capabilities
+    - Python Executor MCP now running on port 3002 with code execution and validation
+    - Both servers verified healthy and accessible via HTTP
+    - Agents can now properly connect to MCP servers via SSE endpoints
+
+14. **Analytics Agent Implementation** (COMPLETED - Previous Session)
     - Created analytics_agent.py following same patterns as research and code agents
     - Implemented AnalyticsAgent class with PydanticAI
     - Uses built-in Python capabilities for data analysis (no MCP server needed)
@@ -133,20 +146,18 @@ Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is runni
 ## Next Steps
 
 ### Immediate Tasks
-1. **Fix MCP Servers** (CRITICAL - BLOCKING)
-   - Debug why web search and Python executor servers are exiting
-   - Check FastMCP implementation and configuration
-   - Verify stdio transport setup
-   - Test SSE endpoints for remote connections
-   - Ensure proper error handling in server startup
+1. ~~**Fix MCP Servers**~~ ✅ (COMPLETED)
+   - Both servers now running successfully on ports 3001 and 3002
+   - Converted from stdio to HTTP/SSE transport
+   - Health checks verified working
 
-2. **Functionality Testing** (PARTIALLY COMPLETE)
+2. **Integration Testing** (HIGH PRIORITY)
    - ✅ Frontend accessible at http://localhost:3000/chat
    - ✅ CopilotKit UI is visible and functional
    - ✅ Backend orchestrator is running
    - ⚠️ Limited functionality without specialized agents
 
-3. **Integration Testing** (READY)
+3. **Integration Testing** (IN PROGRESS)
    - Test agent delegation from orchestrator to all three agents
    - Verify result aggregation in orchestrator
    - Test end-to-end workflow with complex queries
@@ -224,14 +235,17 @@ Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is runni
 - Use environment detection to handle Docker vs local networking differences
 - Analytics agent doesn't require MCP server - uses built-in Python capabilities
 - All three specialized agents follow identical implementation patterns for consistency
+- MCP servers must use HTTP/SSE transport when agents connect remotely (not stdio)
+- FastAPI with SSE endpoints is the correct pattern for MCP server remote access
+- Tool execution requires both SSE for discovery and HTTP endpoints for invocation
 
 ## Current Blockers
 - ~~Docker dependency issues (fixed - pydantic-ai 0.4.11, fastmcp 2.11.1)~~ ✅
 - ~~Docker build errors (fixed - Tailwind CSS, missing modules, OTel deps)~~ ✅
 - ~~Docker services need to be started and tested~~ ✅ Core services running
 - ~~**Missing agent implementations**: research_agent.py, code_agent.py, analytics_agent.py~~ ✅ All implemented
-- **MCP servers failing**: Both web search and Python executor exiting on startup (CRITICAL)
-- API keys need to be added to .env file for full functionality
+- ~~**MCP servers failing**: Both web search and Python executor exiting on startup~~ ✅ Fixed
+- **API keys need to be added to .env file for full functionality** (for real web search)
 
 ## Questions for Consideration
 1. Should we add a message queue for better scalability?

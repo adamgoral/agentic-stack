@@ -63,9 +63,12 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - **Pattern**: All agents follow identical implementation structure for consistency
 
 ### MCP Servers
-- **Python Executor**: Sandboxed code execution
-- **Web Search**: Information retrieval
-- **Transport**: stdio for local, SSE for remote
+- **Python Executor**: Sandboxed code execution (Port 3002)
+- **Web Search**: Information retrieval (Port 3001)
+- **Transport**: HTTP/SSE for remote agent connections
+- **Implementation**: FastAPI servers with SSE endpoints at `/sse`
+- **Tool Execution**: HTTP POST to `/tools/{tool_name}`
+- **Health Monitoring**: GET `/health` endpoints
 
 ## Critical Implementation Paths
 

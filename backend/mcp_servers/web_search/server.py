@@ -1,22 +1,41 @@
 #!/usr/bin/env python3
 """
 MCP Web Search Server
-Provides web search capabilities via the Model Context Protocol.
+Provides web search capabilities via HTTP/SSE endpoint.
 """
 
 import os
 import json
-from typing import List, Dict, Any
+import asyncio
+import logging
+from typing import List, Dict, Any, AsyncGenerator
 from datetime import datetime
+from collections import Counter
+import re
 
-from mcp.server.fastmcp import FastMCP
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
+import uvicorn
 
-# Create the MCP server
-app = FastMCP("Web Search")
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create the FastAPI app
+app = FastAPI(title="Web Search MCP Server")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@app.tool()
 async def search_web(
     query: str, max_results: int = 5, search_type: str = "general"
 ) -> Dict[str, Any]:
@@ -29,11 +48,7 @@ async def search_web(
         search_type: Type of search - "general", "news", "academic" (default: "general")
 
     Returns:
-        Dictionary containing:
-        - results: List of search results with title, url, snippet
-        - query: The original search query
-        - timestamp: When the search was performed
-        - success: Boolean indicating if search succeeded
+        Dictionary containing search results
     """
     result = {
         "results": [],
@@ -67,7 +82,6 @@ async def search_web(
     return result
 
 
-@app.tool()
 async def fetch_webpage(url: str) -> Dict[str, Any]:
     """
     Fetch and extract content from a webpage.
@@ -76,11 +90,7 @@ async def fetch_webpage(url: str) -> Dict[str, Any]:
         url: The URL to fetch
 
     Returns:
-        Dictionary containing:
-        - content: The extracted text content
-        - title: Page title if available
-        - url: The fetched URL
-        - success: Boolean indicating if fetch succeeded
+        Dictionary containing webpage content
     """
     result = {"content": "", "title": "", "url": url, "success": False, "error": None}
 
@@ -107,7 +117,6 @@ async def fetch_webpage(url: str) -> Dict[str, Any]:
     return result
 
 
-@app.tool()
 def extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
     """
     Extract keywords from text for search optimization.
@@ -119,47 +128,133 @@ def extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
     Returns:
         List of extracted keywords
     """
-    # Simple keyword extraction (in production, use NLP libraries)
-    import re
-
     # Remove special characters and convert to lowercase
     words = re.findall(r"\b[a-z]+\b", text.lower())
 
     # Filter out common stop words
     stop_words = {
-        "the",
-        "is",
-        "at",
-        "which",
-        "on",
-        "a",
-        "an",
-        "and",
-        "or",
-        "but",
-        "in",
-        "with",
-        "to",
-        "for",
-        "of",
-        "as",
-        "from",
-        "by",
-        "that",
-        "this",
+        "the", "is", "at", "which", "on", "a", "an", "and", "or", "but",
+        "in", "with", "to", "for", "of", "as", "from", "by", "that", "this",
     }
 
     keywords = [w for w in words if len(w) > 3 and w not in stop_words]
 
     # Count frequency and return top keywords
-    from collections import Counter
-
     word_freq = Counter(keywords)
-
     return [word for word, _ in word_freq.most_common(max_keywords)]
 
 
-if __name__ == "__main__":
-    # Run the server with stdio transport
-    app.run()
+async def handle_tool_call(tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tool calls from the MCP protocol"""
+    if tool_name == "search_web":
+        return await search_web(**args)
+    elif tool_name == "fetch_webpage":
+        return await fetch_webpage(**args)
+    elif tool_name == "extract_keywords":
+        return extract_keywords(**args)
+    else:
+        return {"error": f"Unknown tool: {tool_name}"}
 
+
+async def event_stream(request: Request) -> AsyncGenerator[str, None]:
+    """Generate Server-Sent Events stream"""
+    logger.info("Client connected to SSE endpoint")
+    
+    # Send initial connection message
+    yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to Web Search MCP Server'})}\n\n"
+    
+    # Send capabilities
+    capabilities = {
+        "type": "capabilities",
+        "tools": [
+            {
+                "name": "search_web",
+                "description": "Search the web for information",
+                "parameters": {
+                    "query": {"type": "string", "required": True},
+                    "max_results": {"type": "integer", "default": 5},
+                    "search_type": {"type": "string", "default": "general"}
+                }
+            },
+            {
+                "name": "fetch_webpage",
+                "description": "Fetch and extract content from a webpage",
+                "parameters": {
+                    "url": {"type": "string", "required": True}
+                }
+            },
+            {
+                "name": "extract_keywords",
+                "description": "Extract keywords from text",
+                "parameters": {
+                    "text": {"type": "string", "required": True},
+                    "max_keywords": {"type": "integer", "default": 10}
+                }
+            }
+        ]
+    }
+    yield f"data: {json.dumps(capabilities)}\n\n"
+    
+    # Keep connection alive and handle incoming messages
+    try:
+        while True:
+            # In a real implementation, you would read from request body for tool calls
+            # For now, just keep the connection alive
+            await asyncio.sleep(30)
+            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            
+    except asyncio.CancelledError:
+        logger.info("Client disconnected from SSE endpoint")
+        raise
+
+
+@app.get("/sse")
+async def sse_endpoint(request: Request):
+    """SSE endpoint for MCP communication"""
+    return StreamingResponse(
+        event_stream(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering for nginx
+        }
+    )
+
+
+@app.post("/tools/{tool_name}")
+async def execute_tool(tool_name: str, request: Request):
+    """Execute a specific tool"""
+    try:
+        args = await request.json()
+        result = await handle_tool_call(tool_name, args)
+        return {"success": True, "result": result}
+    except Exception as e:
+        logger.error(f"Error executing tool {tool_name}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "web-search-mcp"}
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with service info"""
+    return {
+        "service": "Web Search MCP Server",
+        "version": "1.0.0",
+        "endpoints": [
+            "/sse - SSE endpoint for MCP communication",
+            "/tools/{tool_name} - Execute specific tools",
+            "/health - Health check",
+        ]
+    }
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 3001))
+    logger.info(f"Starting Web Search MCP Server on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

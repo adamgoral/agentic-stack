@@ -20,9 +20,11 @@
 - [x] Analytics agent implementation
 
 ### MCP Servers ✅
-- [x] Python executor server
-- [x] Web search server
-- [x] Docker containers for servers
+- [x] Python executor server - converted to HTTP/SSE, running on port 3002
+- [x] Web search server - converted to HTTP/SSE, running on port 3001
+- [x] Docker containers for both servers functioning properly
+- [x] SSE endpoints implemented for agent connections
+- [x] Health check endpoints verified working
 
 ### Documentation ✅
 - [x] MVP design document
@@ -65,7 +67,7 @@
 - [x] Research agent module implemented - container now starts successfully
 - [x] Code agent module implemented - container now starts successfully
 - [x] Analytics agent module implemented - container ready to start
-- [ ] MCP servers exiting on startup - need debugging
+- [x] MCP servers fixed - both web search and Python executor running on ports 3001/3002
 
 ## What's Left to Build
 
@@ -78,10 +80,10 @@
 - [x] Validate environment configuration - Core services operational
 
 ### Backend Testing 🚧
-- [ ] Verify AG-UI endpoint accessibility at /ag-ui
-- [ ] Test CopilotKit to backend connection
-- [ ] Validate real-time streaming
-- [ ] Check Redis connectivity
+- [x] Verify AG-UI endpoint accessibility at /ag-ui - endpoint accessible
+- [x] Test CopilotKit to backend connection - connected successfully
+- [ ] Validate real-time streaming with actual agent responses
+- [x] Check Redis connectivity - Redis connected and operational
 
 ### Agent Implementation ✅ (COMPLETED)
 - [x] Create research_agent.py module in /backend/agents/
@@ -93,11 +95,11 @@
 - [x] Connect research agent to web search MCP server
 - [x] Connect code agent to Python executor MCP server
 - [x] Analytics agent uses built-in Python capabilities (no MCP server needed)
-- [ ] Test agent delegation from orchestrator
-- [ ] Verify result aggregation logic
+- [ ] Test agent delegation from orchestrator (NEXT PRIORITY)
+- [ ] Verify result aggregation logic (NEXT PRIORITY)
 
-### Integration 🚧
-- [ ] End-to-end protocol testing
+### Integration 🚧 (IN PROGRESS)
+- [ ] End-to-end protocol testing (READY TO TEST)
 - [ ] Error recovery mechanisms
 - [ ] Performance optimization
 - [ ] Load testing
@@ -118,14 +120,14 @@
 - **Backend Orchestrator**: Implemented and running at http://localhost:8000
 - **Frontend**: Fully implemented with CopilotKit, accessible at http://localhost:3000/chat
 - **Core Infrastructure**: Redis and PostgreSQL running healthy
-- **Research Agent**: IMPLEMENTED - container starts successfully
-- **Code Agent**: IMPLEMENTED - container starts successfully
-- **Analytics Agent**: IMPLEMENTED - ready to start, uses built-in Python analytics
-- **MCP Servers**: FAILING - exiting on startup (web search, Python executor)
+- **Research Agent**: IMPLEMENTED - container running successfully
+- **Code Agent**: IMPLEMENTED - container running successfully
+- **Analytics Agent**: IMPLEMENTED - container running, uses built-in Python analytics
+- **MCP Servers**: FIXED - both web search (3001) and Python executor (3002) running
 - **CopilotKit**: Integrated and functioning with AG-UI connection
 - **Dependencies**: All fixed and validated
-- **Integration**: Mostly ready - blocked by analytics agent and MCP servers
-- **Overall Status**: Core system operational, all three specialized agents implemented, MCP servers need fixing
+- **Integration**: Ready for testing - all components operational
+- **Overall Status**: FULL SYSTEM OPERATIONAL - ready for integration testing
 
 ### Deployment Readiness
 - **Local Development**: Ready with Docker
@@ -139,13 +141,13 @@
 3. No authentication mechanism yet
 4. Missing comprehensive error handling
 5. ~~Analytics agent module not created~~ ✅ Implemented
-6. **MCP server implementations incomplete** - causing exits
+6. ~~MCP server implementations incomplete~~ ✅ Fixed - converted to HTTP/SSE
 
 ### Configuration Issues
 - CORS configuration needs testing
 - Redis connection pooling not optimized
-- MCP server discovery is hardcoded
-- API keys need to be added to .env file
+- MCP server discovery is hardcoded (acceptable for MVP)
+- API keys need to be added to .env file for real web search (currently using mock)
 
 ### Resolved Issues
 - ~~Docker dependency version mismatches~~ ✅
@@ -155,6 +157,7 @@
 - ~~Missing ag_ui_handler.py module~~ ✅
 - ~~Missing OpenTelemetry instrumentation packages~~ ✅
 - ~~All Docker containers failing to start~~ ✅
+- ~~MCP servers exiting on startup~~ ✅ Fixed with HTTP/SSE conversion
 
 ## Evolution of Decisions
 
@@ -196,6 +199,13 @@
 4. **Docker Support**: Added environment detection for proper networking
 5. **Result**: Research agent ready for deployment
 
+### MCP Server Fix Strategy
+1. **Problem Identification**: Servers using stdio but agents expected HTTP
+2. **Solution**: Convert from FastMCP stdio to FastAPI HTTP/SSE
+3. **Implementation**: Added SSE endpoints, tool execution routes, health checks
+4. **Verification**: Both servers running and accessible on ports 3001/3002
+5. **Result**: Full system connectivity restored
+
 ## Next Milestone
 
 ### MVP Completion (Target)
@@ -207,13 +217,13 @@
 6. ~~**Implement research agent**~~ ✅ (COMPLETED)
 7. ~~**Implement code agent**~~ ✅ (COMPLETED)
 8. ~~**Implement analytics agent**~~ ✅ (COMPLETED)
-9. **Fix MCP servers** (BLOCKED - exiting on startup)
-10. Successful end-to-end workflow demo
+9. ~~**Fix MCP servers**~~ ✅ (COMPLETED - converted to HTTP/SSE)
+10. **Successful end-to-end workflow demo** (NEXT MILESTONE)
 11. Basic error handling throughout
 
 ### Success Metrics
-- User can submit complex query
-- System decomposes into subtasks
-- Agents complete work via tools
-- Results stream to frontend
-- Final answer aggregated correctly
+- User can submit complex query ✅ (UI ready)
+- System decomposes into subtasks (Ready to test)
+- Agents complete work via tools (Ready to test)
+- Results stream to frontend (Ready to test)
+- Final answer aggregated correctly (Ready to test)

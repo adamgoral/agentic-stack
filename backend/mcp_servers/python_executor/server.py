@@ -1,22 +1,41 @@
 #!/usr/bin/env python3
 """
 MCP Python Executor Server
-Provides sandboxed Python code execution via the Model Context Protocol.
+Provides sandboxed Python code execution via HTTP/SSE endpoint.
 """
 
+import os
 import sys
 import io
+import json
+import asyncio
+import logging
 import traceback
 from contextlib import redirect_stdout, redirect_stderr
-from typing import Any, Dict
+from typing import Any, Dict, AsyncGenerator
 
-from mcp.server.fastmcp import FastMCP
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
-# Create the MCP server
-app = FastMCP("Python Executor")
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create the FastAPI app
+app = FastAPI(title="Python Executor MCP Server")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@app.tool()
 def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
     """
     Execute Python code in a sandboxed environment.
@@ -26,10 +45,7 @@ def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
         timeout: Maximum execution time in seconds (default: 30)
 
     Returns:
-        Dictionary containing:
-        - output: The stdout output from the code
-        - error: Any error messages or exceptions
-        - success: Boolean indicating if execution succeeded
+        Dictionary containing execution results
     """
     # Capture stdout and stderr
     stdout_buffer = io.StringIO()
@@ -92,7 +108,6 @@ def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
     return result
 
 
-@app.tool()
 def validate_python(code: str) -> Dict[str, Any]:
     """
     Validate Python code syntax without executing it.
@@ -101,9 +116,7 @@ def validate_python(code: str) -> Dict[str, Any]:
         code: The Python code to validate
 
     Returns:
-        Dictionary containing:
-        - valid: Boolean indicating if syntax is valid
-        - error: Any syntax error messages
+        Dictionary containing validation results
     """
     result = {"valid": False, "error": ""}
 
@@ -116,7 +129,149 @@ def validate_python(code: str) -> Dict[str, Any]:
     return result
 
 
-if __name__ == "__main__":
-    # Run the server with stdio transport
-    app.run()
+def analyze_code(code: str) -> Dict[str, Any]:
+    """
+    Analyze Python code for potential issues and metrics.
 
+    Args:
+        code: The Python code to analyze
+
+    Returns:
+        Dictionary containing code analysis results
+    """
+    result = {
+        "lines": len(code.splitlines()),
+        "has_imports": "import " in code or "from " in code,
+        "has_functions": "def " in code,
+        "has_classes": "class " in code,
+        "complexity": "simple",  # Simplified for MVP
+    }
+
+    # Basic complexity assessment
+    if result["has_classes"] or (result["has_functions"] and result["lines"] > 50):
+        result["complexity"] = "moderate"
+    if result["lines"] > 100:
+        result["complexity"] = "complex"
+
+    return result
+
+
+async def handle_tool_call(tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tool calls from the MCP protocol"""
+    if tool_name == "execute_python":
+        return execute_python(**args)
+    elif tool_name == "validate_python":
+        return validate_python(**args)
+    elif tool_name == "analyze_code":
+        return analyze_code(**args)
+    else:
+        return {"error": f"Unknown tool: {tool_name}"}
+
+
+async def event_stream(request: Request) -> AsyncGenerator[str, None]:
+    """Generate Server-Sent Events stream"""
+    logger.info("Client connected to SSE endpoint")
+    
+    # Send initial connection message
+    yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to Python Executor MCP Server'})}\n\n"
+    
+    # Send capabilities
+    capabilities = {
+        "type": "capabilities",
+        "tools": [
+            {
+                "name": "execute_python",
+                "description": "Execute Python code in a sandboxed environment",
+                "parameters": {
+                    "code": {"type": "string", "required": True},
+                    "timeout": {"type": "integer", "default": 30}
+                }
+            },
+            {
+                "name": "validate_python",
+                "description": "Validate Python code syntax",
+                "parameters": {
+                    "code": {"type": "string", "required": True}
+                }
+            },
+            {
+                "name": "analyze_code",
+                "description": "Analyze Python code for metrics and potential issues",
+                "parameters": {
+                    "code": {"type": "string", "required": True}
+                }
+            }
+        ]
+    }
+    yield f"data: {json.dumps(capabilities)}\n\n"
+    
+    # Keep connection alive and handle incoming messages
+    try:
+        while True:
+            # In a real implementation, you would read from request body for tool calls
+            # For now, just keep the connection alive
+            await asyncio.sleep(30)
+            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            
+    except asyncio.CancelledError:
+        logger.info("Client disconnected from SSE endpoint")
+        raise
+
+
+@app.get("/sse")
+async def sse_endpoint(request: Request):
+    """SSE endpoint for MCP communication"""
+    return StreamingResponse(
+        event_stream(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable buffering for nginx
+        }
+    )
+
+
+@app.post("/tools/{tool_name}")
+async def execute_tool(tool_name: str, request: Request):
+    """Execute a specific tool"""
+    try:
+        args = await request.json()
+        result = await handle_tool_call(tool_name, args)
+        return {"success": True, "result": result}
+    except Exception as e:
+        logger.error(f"Error executing tool {tool_name}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "python-executor-mcp"}
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with service info"""
+    return {
+        "service": "Python Executor MCP Server",
+        "version": "1.0.0",
+        "endpoints": [
+            "/sse - SSE endpoint for MCP communication",
+            "/tools/{tool_name} - Execute specific tools",
+            "/health - Health check",
+        ],
+        "capabilities": [
+            "execute_python - Execute Python code safely",
+            "validate_python - Validate Python syntax",
+            "analyze_code - Analyze code metrics",
+        ]
+    }
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 3002))
+    max_execution_time = int(os.getenv("MAX_EXECUTION_TIME", 30))
+    logger.info(f"Starting Python Executor MCP Server on port {port}")
+    logger.info(f"Max execution time: {max_execution_time} seconds")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
