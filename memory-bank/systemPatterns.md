@@ -23,6 +23,7 @@
 ### 1. Protocol Adapter Pattern
 Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - `protocols/a2a_manager.py`: Manages A2A communication
+- `protocols/ag_ui_handler.py`: AG-UI message formatting and validation
 - `main.py`: AG-UI endpoint handlers
 - `agents/orchestrator.py`: MCP client connections
 - `frontend/app/api/copilotkit/route.ts`: CopilotKit to AG-UI proxy

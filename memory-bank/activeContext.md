@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Work Focus
-Docker dependency fixes complete. All services now build successfully. Ready for backend testing and agent implementation.
+All Docker services are now running successfully. The full stack is operational with frontend accessible at http://localhost:3000. Ready for functionality testing and agent implementation.
 
 ## Recent Changes
 
@@ -57,21 +57,31 @@ Docker dependency fixes complete. All services now build successfully. Ready for
    - Full TypeScript support and Next.js 14+ best practices
    - Documentation created for integration
 
-9. **Docker Dependency Fixes** (COMPLETED TODAY)
+9. **Docker Dependency Fixes** (COMPLETED)
    - Fixed pydantic-ai version constraint from >=0.12.0 to >=0.4.11
    - Replaced mcp-server-fastmcp with correct fastmcp>=2.11.1 package
    - Updated all MCP server requirements files
    - All Docker services now build successfully
    - Memory bank documentation updated
 
+10. **Docker Build and Runtime Fixes** (COMPLETED - Latest Session)
+   - Fixed frontend build error: removed undefined `border-border` Tailwind class
+   - Replaced with proper border color styling using theme colors
+   - Created missing `ag_ui_handler.py` module in protocols directory
+   - Added missing OpenTelemetry dependencies:
+     - opentelemetry-instrumentation-httpx>=0.45b0
+     - opentelemetry-instrumentation-redis>=0.45b0
+   - All containers now start successfully and are healthy
+   - Full stack operational: Frontend, Backend, Agents, MCP servers, Redis, PostgreSQL
+
 ## Next Steps
 
 ### Immediate Tasks
-1. **Docker Service Testing**
-   - Start all Docker services with docker-compose up
-   - Verify all containers build and start successfully
-   - Test basic connectivity between services
-   - Validate environment configuration
+1. **Functionality Testing**
+   - Test frontend accessibility at http://localhost:3000
+   - Verify CopilotKit UI interaction
+   - Test AG-UI endpoint connectivity
+   - Validate streaming responses
 
 2. **Backend Testing**
    - Verify AG-UI endpoint is accessible at /ag-ui
@@ -145,11 +155,15 @@ Docker dependency fixes complete. All services now build successfully. Ready for
 - Always verify package names and versions on PyPI before using in requirements.txt
 - pydantic-ai latest version is 0.4.11, not 0.12.0
 - Use fastmcp instead of mcp-server-fastmcp for MCP server implementation
+- Tailwind CSS classes must be defined in config or CSS layers
+- Always create all imported modules before building Docker images
+- Include all required OpenTelemetry instrumentation packages in requirements
 
 ## Current Blockers
 - ~~Docker dependency issues (fixed - pydantic-ai 0.4.11, fastmcp 2.11.1)~~ ✅
-- API keys need to be added to .env file
-- Docker services need to be started and tested
+- ~~Docker build errors (fixed - Tailwind CSS, missing modules, OTel deps)~~ ✅
+- ~~Docker services need to be started and tested~~ ✅ All running
+- API keys need to be added to .env file for full functionality
 - Backend agents need implementation
 
 ## Questions for Consideration
