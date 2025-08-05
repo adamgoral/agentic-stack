@@ -1,13 +1,27 @@
 # Active Context
 
 ## Current Work Focus
-Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is running successfully. Frontend is accessible at http://localhost:3000/chat. However, specialized agents (research, code, analytics) and MCP servers are failing due to missing implementations. Focus is now on implementing these missing components to enable full multi-agent functionality.
+Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is running successfully. Frontend is accessible at http://localhost:3000/chat. Research and code agents have been implemented and should start successfully. Analytics agent still needs implementation, and MCP servers are failing on startup. Focus is now on implementing the analytics agent and debugging MCP server issues to enable full multi-agent functionality.
 
 ## Recent Changes
 
 ### Completed
 
-12. **Research Agent Implementation** (COMPLETED - Current Session)
+13. **Code Agent Implementation** (COMPLETED - Current Session)
+    - Created code_agent.py following same patterns as research agent
+    - Implemented CodeAgent class with PydanticAI
+    - Connected to Python executor MCP server (http://mcp-python-executor:3002/sse)
+    - Implemented A2A protocol handling for code tasks
+    - Added comprehensive error handling and logging
+    - Created run_code_agent.py for standalone service
+    - Added Docker environment detection for proper networking
+    - Created test script capabilities for validation
+    - Updated agents/__init__.py to export CodeAgent
+    - Added module entry point for Docker execution (code_agent/__main__.py)
+    - Code agent can analyze, generate, execute code, and write tests
+    - Follows exact same structure as research and orchestrator agents
+
+12. **Research Agent Implementation** (COMPLETED - Previous Session)
     - Created research_agent.py following orchestrator patterns
     - Implemented ResearchAgent class with PydanticAI
     - Connected to web search MCP server (http://mcp-web-search:3001/sse)
@@ -106,10 +120,10 @@ Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is runni
 ### Immediate Tasks
 1. **Fix Missing Components** (IN PROGRESS)
    - ✅ Implement research agent module at /backend/agents/research_agent.py
-   - Implement code agent module at /backend/agents/code_agent.py
+   - ✅ Implement code agent module at /backend/agents/code_agent.py
    - Implement analytics agent module at /backend/agents/analytics_agent.py
    - Fix MCP server implementations that are exiting
-   - Test research agent container after implementation
+   - Test all agent containers after implementations
 
 2. **Functionality Testing** (PARTIALLY COMPLETE)
    - ✅ Frontend accessible at http://localhost:3000/chat
@@ -118,10 +132,11 @@ Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is runni
    - ⚠️ Limited functionality without specialized agents
 
 3. **Agent Implementation**
-   - Create proper A2A-enabled agents with PydanticAI
-   - Implement web search integration for research agent
-   - Implement code execution for code agent
-   - Add analytics capabilities to analytics agent
+   - ✅ Created A2A-enabled research agent with PydanticAI
+   - ✅ Created A2A-enabled code agent with PydanticAI
+   - ✅ Implemented web search integration for research agent
+   - ✅ Implemented code execution for code agent
+   - Add analytics capabilities to analytics agent (pending)
 
 4. **MCP Server Fixes**
    - Debug why MCP servers are exiting
@@ -187,12 +202,16 @@ Core infrastructure (frontend, backend orchestrator, Redis, PostgreSQL) is runni
 - Tailwind CSS classes must be defined in config or CSS layers
 - Always create all imported modules before building Docker images
 - Include all required OpenTelemetry instrumentation packages in requirements
+- Agent implementation pattern: Use same structure across all agents for consistency
+- Agent modules need __init__.py and __main__.py for proper Docker execution
+- Use environment detection to handle Docker vs local networking differences
 
 ## Current Blockers
 - ~~Docker dependency issues (fixed - pydantic-ai 0.4.11, fastmcp 2.11.1)~~ ✅
 - ~~Docker build errors (fixed - Tailwind CSS, missing modules, OTel deps)~~ ✅
 - ~~Docker services need to be started and tested~~ ✅ Core services running
-- ~~**Missing agent implementations**: research_agent.py~~ ✅ Implemented, code_agent.py, analytics_agent.py still needed
+- ~~**Missing agent implementations**: research_agent.py, code_agent.py~~ ✅ Implemented
+- **Missing agent implementation**: analytics_agent.py still needed
 - **MCP servers failing**: Both web search and Python executor exiting on startup
 - API keys need to be added to .env file for full functionality
 
