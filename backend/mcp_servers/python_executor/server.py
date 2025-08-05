@@ -20,11 +20,11 @@ app = FastMCP("Python Executor")
 def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
     """
     Execute Python code in a sandboxed environment.
-    
+
     Args:
         code: The Python code to execute
         timeout: Maximum execution time in seconds (default: 30)
-    
+
     Returns:
         Dictionary containing:
         - output: The stdout output from the code
@@ -34,13 +34,9 @@ def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
     # Capture stdout and stderr
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
-    
-    result = {
-        "output": "",
-        "error": "",
-        "success": False
-    }
-    
+
+    result = {"output": "", "error": "", "success": False}
+
     try:
         # Create a restricted globals environment
         safe_globals = {
@@ -71,24 +67,28 @@ def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
                 "zip": zip,
             }
         }
-        
+
         # Execute the code with output redirection
         with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
             exec(code, safe_globals)
-        
+
         result["output"] = stdout_buffer.getvalue()
         result["success"] = True
-        
+
     except Exception as e:
         result["error"] = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
         result["output"] = stdout_buffer.getvalue()
-    
+
     finally:
         # Include any stderr output in the error field
         stderr_content = stderr_buffer.getvalue()
         if stderr_content:
-            result["error"] = result["error"] + "\nStderr:\n" + stderr_content if result["error"] else stderr_content
-    
+            result["error"] = (
+                result["error"] + "\nStderr:\n" + stderr_content
+                if result["error"]
+                else stderr_content
+            )
+
     return result
 
 
@@ -96,29 +96,27 @@ def execute_python(code: str, timeout: int = 30) -> Dict[str, Any]:
 def validate_python(code: str) -> Dict[str, Any]:
     """
     Validate Python code syntax without executing it.
-    
+
     Args:
         code: The Python code to validate
-    
+
     Returns:
         Dictionary containing:
         - valid: Boolean indicating if syntax is valid
         - error: Any syntax error messages
     """
-    result = {
-        "valid": False,
-        "error": ""
-    }
-    
+    result = {"valid": False, "error": ""}
+
     try:
         compile(code, "<string>", "exec")
         result["valid"] = True
     except SyntaxError as e:
         result["error"] = f"SyntaxError: {str(e)}"
-    
+
     return result
 
 
 if __name__ == "__main__":
     # Run the server with stdio transport
     app.run()
+

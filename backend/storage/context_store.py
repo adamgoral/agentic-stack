@@ -17,18 +17,16 @@ class ContextStore:
     Storage layer for conversation contexts and task states
     Uses Redis for fast access and persistence
     """
-    
+
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         self.redis_url = redis_url
         self.redis_client: Optional[redis.Redis] = None
-        
+
     async def initialize(self):
         """Initialize Redis connection"""
         try:
             self.redis_client = await redis.from_url(
-                self.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                self.redis_url, encoding="utf-8", decode_responses=True
             )
             await self.redis_client.ping()
             logger.info("Context store initialized with Redis")
@@ -38,83 +36,83 @@ class ContextStore:
             self.redis_client = None
             self._memory_store = {}
             logger.warning("Using in-memory storage (data will not persist)")
-    
+
     async def store_context(self, context: ConversationState) -> bool:
         """Store or update a conversation context"""
         try:
             key = f"context:{context.context_id}"
             value = context.model_dump_json()
-            
+
             if self.redis_client:
                 await self.redis_client.set(key, value)
                 # Set expiration to 24 hours
                 await self.redis_client.expire(key, 86400)
             else:
                 self._memory_store[key] = value
-            
+
             logger.debug(f"Stored context: {context.context_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error storing context: {e}")
             return False
-    
+
     async def get_context(self, context_id: str) -> Optional[ConversationState]:
         """Retrieve a conversation context"""
         try:
             key = f"context:{context_id}"
-            
+
             if self.redis_client:
                 value = await self.redis_client.get(key)
             else:
                 value = self._memory_store.get(key)
-            
+
             if value:
                 return ConversationState.model_validate_json(value)
             return None
-            
+
         except Exception as e:
             logger.error(f"Error retrieving context: {e}")
             return None
-    
+
     async def store_task(self, task: AgentTaskState) -> bool:
         """Store or update a task state"""
         try:
             key = f"task:{task.task_id}"
             value = task.model_dump_json()
-            
+
             if self.redis_client:
                 await self.redis_client.set(key, value)
                 # Set expiration to 24 hours
                 await self.redis_client.expire(key, 86400)
             else:
                 self._memory_store[key] = value
-            
+
             logger.debug(f"Stored task: {task.task_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error storing task: {e}")
             return False
-    
+
     async def get_task(self, task_id: str) -> Optional[AgentTaskState]:
         """Retrieve a task state"""
         try:
             key = f"task:{task_id}"
-            
+
             if self.redis_client:
                 value = await self.redis_client.get(key)
             else:
                 value = self._memory_store.get(key)
-            
+
             if value:
                 return AgentTaskState.model_validate_json(value)
             return None
-            
+
         except Exception as e:
             logger.error(f"Error retrieving task: {e}")
             return None
-    
+
     async def get_context_tasks(self, context_id: str) -> List[AgentTaskState]:
         """Get all tasks associated with a context"""
         tasks = []
@@ -124,9 +122,7 @@ class ContextStore:
                 cursor = 0
                 pattern = "task:*"
                 while True:
-                    cursor, keys = await self.redis_client.scan(
-                        cursor, match=pattern, count=100
-                    )
+                    cursor, keys = await self.redis_client.scan(cursor, match=pattern, count=100)
                     for key in keys:
                         value = await self.redis_client.get(key)
                         if value:
@@ -143,13 +139,13 @@ class ContextStore:
                         task = AgentTaskState.model_validate_json(value)
                         if task.input_data.get("context_id") == context_id:
                             tasks.append(task)
-            
+
             return tasks
-            
+
         except Exception as e:
             logger.error(f"Error getting context tasks: {e}")
             return []
-    
+
     async def list_contexts(self, limit: int = 100) -> List[str]:
         """List all context IDs"""
         contexts = []
@@ -175,13 +171,13 @@ class ContextStore:
                         contexts.append(key.replace("context:", ""))
                         if len(contexts) >= limit:
                             break
-            
+
             return contexts
-            
+
         except Exception as e:
             logger.error(f"Error listing contexts: {e}")
             return []
-    
+
     async def delete_context(self, context_id: str) -> bool:
         """Delete a context and all associated tasks"""
         try:
@@ -191,7 +187,7 @@ class ContextStore:
                 await self.redis_client.delete(context_key)
             else:
                 self._memory_store.pop(context_key, None)
-            
+
             # Delete associated tasks
             tasks = await self.get_context_tasks(context_id)
             for task in tasks:
@@ -200,14 +196,14 @@ class ContextStore:
                     await self.redis_client.delete(task_key)
                 else:
                     self._memory_store.pop(task_key, None)
-            
+
             logger.info(f"Deleted context {context_id} and {len(tasks)} tasks")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error deleting context: {e}")
             return False
-    
+
     async def get_metrics(self) -> Dict[str, Any]:
         """Get storage metrics"""
         try:
@@ -225,15 +221,18 @@ class ContextStore:
                     "storage_type": "memory",
                     "connected": True,
                     "total_keys": len(self._memory_store),
-                    "contexts": len([k for k in self._memory_store.keys() if k.startswith("context:")]),
-                    "tasks": len([k for k in self._memory_store.keys() if k.startswith("task:")])
+                    "contexts": len(
+                        [k for k in self._memory_store.keys() if k.startswith("context:")]
+                    ),
+                    "tasks": len([k for k in self._memory_store.keys() if k.startswith("task:")]),
                 }
         except Exception as e:
             logger.error(f"Error getting metrics: {e}")
             return {"error": str(e)}
-    
+
     async def close(self):
         """Close storage connections"""
         if self.redis_client:
             await self.redis_client.close()
             logger.info("Context store closed")
+

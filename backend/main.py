@@ -26,7 +26,7 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -35,30 +35,29 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info("Starting Agentic Stack MVP...")
-    
+
     # Initialize monitoring
     setup_monitoring()
-    
+
     # Initialize storage
     app.state.context_store = ContextStore()
     await app.state.context_store.initialize()
-    
+
     # Initialize A2A manager
     app.state.a2a_manager = A2AManager()
-    
+
     # Initialize orchestrator agent
     app.state.orchestrator = OrchestratorAgent(
-        a2a_manager=app.state.a2a_manager,
-        context_store=app.state.context_store
+        a2a_manager=app.state.a2a_manager, context_store=app.state.context_store
     )
-    
+
     # Start orchestrator
     await app.state.orchestrator.start()
-    
+
     logger.info("Agentic Stack MVP started successfully")
-    
+
     yield
-    
+
     # Cleanup
     logger.info("Shutting down Agentic Stack MVP...")
     await app.state.orchestrator.stop()
@@ -71,7 +70,7 @@ app = FastAPI(
     title="Agentic Stack MVP",
     description="Multi-agent system with AG-UI, A2A, and MCP protocols",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -90,11 +89,7 @@ async def root():
     return {
         "name": "Agentic Stack MVP",
         "status": "running",
-        "protocols": {
-            "ag_ui": "enabled",
-            "a2a": "enabled",
-            "mcp": "enabled"
-        }
+        "protocols": {"ag_ui": "enabled", "a2a": "enabled", "mcp": "enabled"},
     }
 
 
@@ -106,7 +101,7 @@ async def health_check(request: Request):
         "status": "healthy",
         "orchestrator": orchestrator.is_running,
         "connected_agents": await orchestrator.get_connected_agents(),
-        "mcp_servers": await orchestrator.get_mcp_servers()
+        "mcp_servers": await orchestrator.get_mcp_servers(),
     }
 
 
@@ -116,7 +111,7 @@ async def run_agent_ag_ui(request: Request):
     """Handle AG-UI requests with SSE streaming"""
     orchestrator = request.app.state.orchestrator
     data = await request.json()
-    
+
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events from agent execution"""
         try:
@@ -126,27 +121,24 @@ async def run_agent_ag_ui(request: Request):
                 user_preferences=data.get("preferences", {}),
                 current_task=data.get("message"),
                 task_history=[],
-                agent_outputs={}
+                agent_outputs={},
             )
-            
+
             # Run agent with AG-UI protocol
-            async for event in orchestrator.run_ag_ui(
-                message=data["message"],
-                state=state
-            ):
+            async for event in orchestrator.run_ag_ui(message=data["message"], state=state):
                 yield f"data: {event}\n\n"
-                
+
         except Exception as e:
             logger.error(f"Error in AG-UI execution: {e}")
-            yield f"data: {{\"type\": \"error\", \"message\": \"{str(e)}\"}}\n\n"
-    
+            yield f'data: {{"type": "error", "message": "{str(e)}"}}\n\n'
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        }
+        },
     )
 
 
@@ -197,17 +189,18 @@ async def list_mcp_servers(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     # Get configuration from environment
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     reload = os.getenv("ENV", "development") == "development"
-    
+
     # Run the application
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
         reload=reload,
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )
+
