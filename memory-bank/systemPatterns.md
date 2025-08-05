@@ -58,7 +58,9 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 ### Specialized Agents
 - **Research Agent**: Information gathering via MCP web search
 - **Code Agent**: Code generation/validation via MCP Python executor
+- **Analytics Agent**: Data analysis using built-in Python capabilities
 - **Communication**: A2A protocol with orchestrator
+- **Pattern**: All agents follow identical implementation structure for consistency
 
 ### MCP Servers
 - **Python Executor**: Sandboxed code execution
