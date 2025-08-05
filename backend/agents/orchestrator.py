@@ -5,6 +5,7 @@ Handles user interactions via AG-UI, delegates tasks via A2A, and manages tool a
 
 import json
 import logging
+import os
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 import asyncio
@@ -62,20 +63,28 @@ class OrchestratorAgent:
         )
 
         # Agent endpoints for A2A communication
+        # Use container names in Docker, localhost otherwise
+        is_docker = os.path.exists("/.dockerenv") or os.getenv("DOCKER_ENV") == "true"
+        host_prefix = "agentic-" if is_docker else "localhost"
+        
         self.agent_endpoints = {
-            "research": "http://localhost:8001/a2a",
-            "code": "http://localhost:8002/a2a",
-            "analytics": "http://localhost:8003/a2a",
+            "research": f"http://{host_prefix}research-agent:8001" if is_docker else "http://localhost:8001",
+            "code": f"http://{host_prefix}code-agent:8002" if is_docker else "http://localhost:8002",
+            "analytics": f"http://{host_prefix}analytics-agent:8003" if is_docker else "http://localhost:8003",
         }
 
     def _initialize_mcp_servers(self) -> Dict[str, Any]:
         """Initialize MCP server connections"""
         servers = {}
+        
+        # Determine if we're running in Docker
+        is_docker = os.path.exists("/.dockerenv") or os.getenv("DOCKER_ENV") == "true"
 
         # Web search server (SSE)
+        web_search_url = "http://mcp-web-search:3001/sse" if is_docker else "http://localhost:3001/sse"
         try:
-            servers["web_search"] = MCPServerSSE(url="http://localhost:3001/sse", prefix="search_")
-            logger.info("Connected to web search MCP server")
+            servers["web_search"] = MCPServerSSE(url=web_search_url, prefix="search_")
+            logger.info(f"Connected to web search MCP server at {web_search_url}")
         except Exception as e:
             logger.warning(f"Could not connect to web search server: {e}")
 
