@@ -69,7 +69,7 @@ class A2AManager:
 
             # Send request to agent's A2A endpoint
             response = await client.post(
-                f"{agent_url}/tasks",
+                f"{agent_url}/a2a/tasks",
                 json=payload,
                 headers={
                     "Content-Type": "application/json",
@@ -117,7 +117,7 @@ class A2AManager:
         client = await self._get_client(agent_url)
 
         try:
-            endpoint = f"{agent_url}/tasks/{task_id}"
+            endpoint = f"{agent_url}/a2a/tasks/{task_id}"
             if wait:
                 endpoint += "?wait=true"
 
