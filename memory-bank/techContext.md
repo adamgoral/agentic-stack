@@ -42,6 +42,7 @@
 - Node.js 18+
 - Docker & Docker Compose
 - Redis (or use Docker)
+- UV (for Python package management)
 ```
 
 ### Environment Variables
@@ -97,9 +98,32 @@ LOG_LEVEL=INFO
 - Input sanitization
 - Rate limiting on endpoints
 
+## Package Management
+
+### Backend Package Management
+The backend now uses a modern Python packaging setup with:
+- **UV**: Fast Python package installer and resolver (Rust-based)
+- **pyproject.toml**: Standard Python project configuration
+- **Ruff**: Fast Python linter and formatter (Rust-based)
+
+The backend has its own `pyproject.toml` file with:
+- Project metadata and classifiers
+- Comprehensive dependency management
+- Development tool configurations (ruff, pytest, mypy, bandit)
+- Optional dependency groups for dev and docs
+- Production-grade linting and formatting rules
+
+### Frontend Package Management
+The frontend uses standard Node.js tooling:
+- **npm**: Package management
+- **package.json**: Dependency configuration
+- **TypeScript**: Type checking and compilation
+- **ESLint**: Linting
+- **Next.js**: Build tooling
+
 ## Dependencies
 
-### Python Dependencies (backend/requirements.txt)
+### Python Dependencies (backend/pyproject.toml)
 ```
 # Core Framework
 pydantic-ai[all]>=0.4.11
@@ -205,10 +229,22 @@ docker-compose up -d backend
 
 ### Development Commands
 ```bash
-# Backend development
+# Backend development with UV
 cd backend
-pip install -r requirements.txt
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Install dependencies with development extras
+uv pip install -e ".[dev]"
+# Run the backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Code quality tools
+ruff format .       # Format code
+ruff check .        # Lint code
+ruff check --fix .  # Auto-fix linting issues
+pytest             # Run tests
+mypy .             # Type checking
+bandit -r .        # Security scanning
 
 # Frontend development
 cd frontend

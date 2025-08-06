@@ -125,12 +125,14 @@ agentic-stack/
 │   ├── storage/      # State management
 │   ├── models/       # Data models
 │   ├── mcp_servers/  # MCP server implementations
-│   └── tests/        # All test files
+│   ├── tests/        # All test files
+│   └── pyproject.toml # Backend package configuration
 ├── frontend/         # Next.js application
 │   ├── app/         # App router pages
 │   ├── components/  # React components
 │   ├── lib/         # Utilities
-│   └── types/       # TypeScript types
+│   ├── types/       # TypeScript types
+│   └── package.json # Frontend dependencies
 ├── docs/            # All documentation
 │   ├── API_KEYS_SETUP.md
 │   ├── MVP_DESIGN.md
@@ -140,3 +142,10 @@ agentic-stack/
 ├── docker/          # Docker configurations
 └── docker-compose.yml
 ```
+
+### Development Tools
+- **UV**: Fast Python package management (Rust-based)
+- **Ruff**: Fast Python linting and formatting (Rust-based)
+- **pytest**: Testing with async support and coverage
+- **mypy**: Static type checking
+- **bandit**: Security vulnerability scanning
