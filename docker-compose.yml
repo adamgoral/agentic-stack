@@ -60,6 +60,7 @@ services:
       - OTLP_ENDPOINT=jaeger:4317
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENV=${ENV:-development}
+      - SECRET_KEY=${SECRET_KEY:-a3ae8852d3161e75b6f7097afd0116927442a5ce0316152143d000d518628683}
     depends_on:
       redis:
         condition: service_healthy

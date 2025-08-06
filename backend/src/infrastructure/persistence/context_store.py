@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import redis.asyncio as redis
-from models.state import ConversationState, AgentTaskState
+from src.domain.models import ConversationState, AgentTaskState
 
 logger = logging.getLogger(__name__)
 
@@ -235,4 +235,3 @@ class ContextStore:
         if self.redis_client:
             await self.redis_client.close()
             logger.info("Context store closed")
-

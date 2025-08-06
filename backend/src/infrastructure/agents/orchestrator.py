@@ -14,9 +14,9 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerSSE, MCPServerStdio
 from pydantic_ai.ag_ui import StateDeps
 
-from models.state import ConversationState, AgentTaskState
-from protocols.a2a_manager import A2AManager
-from storage.context_store import ContextStore
+from src.domain.models import ConversationState, AgentTaskState
+from src.infrastructure.protocols.a2a_manager import A2AManager
+from src.infrastructure.persistence.context_store import ContextStore
 
 logger = logging.getLogger(__name__)
 

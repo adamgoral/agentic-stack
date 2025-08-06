@@ -138,4 +138,3 @@ class SystemMetrics(BaseModel):
     last_updated: datetime = Field(
         default_factory=datetime.utcnow, description="Last metrics update"
     )
-
