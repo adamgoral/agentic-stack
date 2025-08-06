@@ -221,14 +221,25 @@ npm run lint        # ESLint checks
 
 ### Testing Patterns
 ```bash
-# Unit tests (future)
+# Run all tests from backend directory
+cd backend
 pytest tests/
+
+# Run specific test file
+pytest tests/test_e2e_comprehensive.py
+
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html
 
 # Integration tests
 docker-compose -f docker-compose.test.yml up
 
 # API testing
 curl http://localhost:8000/health
+
+# MCP server testing
+bash tests/test_mcp_curl.sh
+bash tests/test_mcp_python_executor.sh
 ```
 
 ## Configuration Management

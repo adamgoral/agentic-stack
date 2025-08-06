@@ -34,6 +34,8 @@
 - [x] API_KEYS_SETUP.md - comprehensive guide for API configuration
 - [x] E2E_TEST_REPORT.md - detailed testing results and analysis
 - [x] DELEGATION_TEST_REPORT.md - agent delegation test results
+- [x] All documentation centralized in /docs directory
+- [x] Test files organized in /backend/tests directory
 
 ### Frontend ✅
 - [x] Next.js 14+ application setup
@@ -198,13 +200,16 @@
 1. **Agent Delegation Tests**: 100% success rate on all delegation scenarios
 2. **MCP Integration Tests**: Both servers validated and working
 3. **End-to-End Tests**: Comprehensive validation of entire system
-4. **Test Scripts Created**:
+4. **Test Scripts Created** (now in backend/tests/):
    - test_e2e_comprehensive.py - Full system testing with 10 scenarios
    - test_e2e_simple.py - Lightweight testing with standard library
    - test_agent_delegation.py - Agent routing validation
    - test_mcp_integration.py - MCP server testing
    - test_code_execution.py - Code agent validation
-5. **Test Reports**:
+   - test_analytics_agent.py - Analytics agent testing
+   - test_research_agent.py - Research agent testing
+   - test_aggregation_unit.py - Aggregation logic testing
+5. **Test Reports** (now in docs/):
    - E2E_TEST_REPORT.md - Complete system validation
    - DELEGATION_TEST_REPORT.md - Agent delegation results
 6. **Performance Metrics**: Response times 0.7-0.9 seconds for complex tasks

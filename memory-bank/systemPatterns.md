@@ -22,10 +22,10 @@
 
 ### 1. Protocol Adapter Pattern
 Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
-- `protocols/a2a_manager.py`: Manages A2A communication
-- `protocols/ag_ui_handler.py`: AG-UI message formatting and validation
-- `main.py`: AG-UI endpoint handlers
-- `agents/orchestrator.py`: MCP client connections
+- `backend/protocols/a2a_manager.py`: Manages A2A communication
+- `backend/protocols/ag_ui_handler.py`: AG-UI message formatting and validation
+- `backend/main.py`: AG-UI endpoint handlers
+- `backend/agents/orchestrator.py`: MCP client connections
 - `frontend/app/api/copilotkit/route.ts`: CopilotKit to AG-UI proxy
 - `frontend/components/providers/CopilotProvider.tsx`: UI integration
 
@@ -113,3 +113,30 @@ StateDeps[AppState] → Redis Storage → Context Persistence
 - JWT tokens for API access
 - Rate limiting per user
 - Audit logging for all operations
+
+## Project Structure
+
+### Organization
+```
+agentic-stack/
+├── backend/           # Core backend services
+│   ├── agents/       # Agent implementations
+│   ├── protocols/    # Protocol adapters
+│   ├── storage/      # State management
+│   ├── models/       # Data models
+│   ├── mcp_servers/  # MCP server implementations
+│   └── tests/        # All test files
+├── frontend/         # Next.js application
+│   ├── app/         # App router pages
+│   ├── components/  # React components
+│   ├── lib/         # Utilities
+│   └── types/       # TypeScript types
+├── docs/            # All documentation
+│   ├── API_KEYS_SETUP.md
+│   ├── MVP_DESIGN.md
+│   ├── E2E_TEST_REPORT.md
+│   └── ...
+├── memory-bank/     # Project memory for Claude
+├── docker/          # Docker configurations
+└── docker-compose.yml
+```
