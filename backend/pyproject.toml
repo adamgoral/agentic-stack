@@ -108,22 +108,15 @@ Repository = "https://github.com/adam/agentic-stack.git"
 Issues = "https://github.com/adam/agentic-stack/issues"
 
 [project.scripts]
-agentic-stack = "main:main"
-agentic-server = "main:run_server"
+agentic-stack = "src.main:main"
+agentic-server = "src.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = [
-    "agents",
-    "models",
-    "protocols",
-    "storage",
-    "monitoring.py",
-    "main.py",
-]
+packages = ["src"]
 
 [tool.uv]
 dev-dependencies = [
@@ -245,7 +238,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "**/run_*.py" = ["T20"]  # Allow print statements in run scripts
 
 [tool.ruff.lint.isort]
-known-first-party = ["agents", "models", "protocols", "storage"]
+known-first-party = ["src"]
 combine-as-imports = true
 force-single-line = false
 lines-after-imports = 2
@@ -396,14 +389,14 @@ directory = "htmlcov"
 output = "coverage.xml"
 
 [tool.bandit]
-targets = ["agents", "models", "protocols", "storage", "main.py", "monitoring.py"]
+targets = ["src"]
 exclude_dirs = ["tests", "venv", ".venv", "node_modules"]
 skips = ["B101", "B601", "B602"]  # Skip assert_used, shell with subprocess, shell=True
 
 [tool.isort]
 profile = "black"
 line_length = 88
-known_first_party = ["agents", "models", "protocols", "storage"]
+known_first_party = ["src"]
 multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0

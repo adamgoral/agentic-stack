@@ -116,32 +116,92 @@ StateDeps[AppState] → Redis Storage → Context Persistence
 
 ## Project Structure
 
-### Organization
+### Clean Architecture Organization
 ```
 agentic-stack/
-├── backend/           # Core backend services
-│   ├── agents/       # Agent implementations
-│   ├── protocols/    # Protocol adapters
-│   ├── storage/      # State management
-│   ├── models/       # Data models
-│   ├── mcp_servers/  # MCP server implementations
-│   ├── tests/        # All test files
-│   └── pyproject.toml # Backend package configuration
-├── frontend/         # Next.js application
-│   ├── app/         # App router pages
-│   ├── components/  # React components
-│   ├── lib/         # Utilities
-│   ├── types/       # TypeScript types
-│   └── package.json # Frontend dependencies
-├── docs/            # All documentation
+├── backend/                    # Core backend services
+│   ├── src/                   # Source code following Clean Architecture
+│   │   ├── domain/            # Domain layer (pure business logic)
+│   │   │   ├── entities/      # Core business entities
+│   │   │   ├── events/        # Domain events
+│   │   │   └── exceptions/    # Domain-specific exceptions
+│   │   ├── application/       # Application layer (use cases)
+│   │   │   ├── services/      # Application services
+│   │   │   ├── commands/      # Command handlers (CQRS)
+│   │   │   └── queries/       # Query handlers (CQRS)
+│   │   ├── infrastructure/    # Infrastructure layer
+│   │   │   ├── agents/        # Agent implementations
+│   │   │   ├── mcp/          # MCP server integrations
+│   │   │   ├── persistence/   # Data persistence (Redis)
+│   │   │   └── protocols/     # Protocol adapters (A2A, AG-UI)
+│   │   ├── api/               # API layer
+│   │   │   └── v1/           # API version 1
+│   │   │       ├── endpoints/ # REST endpoints
+│   │   │       └── dependencies/ # FastAPI dependencies
+│   │   └── core/              # Cross-cutting concerns
+│   │       ├── config.py      # Configuration management
+│   │       ├── logging.py     # Logging setup
+│   │       └── monitoring.py  # Observability
+│   ├── tests/                 # Test organization
+│   │   ├── unit/             # Fast, isolated tests
+│   │   ├── integration/      # Service integration tests
+│   │   └── e2e/             # End-to-end tests
+│   ├── _legacy_backup/        # Previous implementation backup
+│   ├── scripts/              # Utility scripts
+│   ├── main.py               # Backward compatibility layer
+│   └── pyproject.toml        # Backend package configuration
+├── frontend/                  # Next.js application
+│   ├── app/                 # App router pages
+│   ├── components/          # React components
+│   ├── lib/                 # Utilities
+│   ├── types/               # TypeScript types
+│   └── package.json         # Frontend dependencies
+├── docs/                     # All documentation
 │   ├── API_KEYS_SETUP.md
 │   ├── MVP_DESIGN.md
 │   ├── E2E_TEST_REPORT.md
 │   └── ...
-├── memory-bank/     # Project memory for Claude
-├── docker/          # Docker configurations
+├── memory-bank/              # Project memory for Claude
+├── docker/                   # Docker configurations
 └── docker-compose.yml
 ```
+
+### Clean Architecture Layers
+
+#### Domain Layer (src/domain/)
+- **Purpose**: Core business logic, independent of frameworks
+- **Contents**: 
+  - Entities (Agent, Task, Conversation, Message)
+  - Value objects
+  - Domain events
+  - Business rules and invariants
+- **Dependencies**: None (pure Python)
+
+#### Application Layer (src/application/)
+- **Purpose**: Use case orchestration
+- **Contents**:
+  - Application services (OrchestratorService, AgentService, etc.)
+  - DTOs and mappers
+  - Command/Query handlers (CQRS pattern ready)
+- **Dependencies**: Domain layer only
+
+#### Infrastructure Layer (src/infrastructure/)
+- **Purpose**: External system integrations
+- **Contents**:
+  - Agent implementations
+  - MCP server clients
+  - Redis repositories
+  - Protocol implementations
+- **Dependencies**: Application and Domain layers
+
+#### API Layer (src/api/)
+- **Purpose**: External interface (REST API)
+- **Contents**:
+  - FastAPI endpoints
+  - Request/Response models
+  - API versioning
+  - Middleware
+- **Dependencies**: All layers
 
 ### Development Tools
 - **UV**: Fast Python package management (Rust-based)

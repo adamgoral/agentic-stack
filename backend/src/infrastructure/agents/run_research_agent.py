@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""
+Run the Research Agent as a standalone service
+"""
+
+import asyncio
+import logging
+import argparse
+import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from agents.research_agent import ResearchAgent
+from agents.agent_task_manager import task_manager
+from protocols.a2a_manager import A2AManager
+from storage.context_store import ContextStore
+from storage.redis_config import create_redis_pool
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+def create_app(research_agent: ResearchAgent) -> FastAPI:
+    """Create FastAPI app for the research agent"""
+    app = FastAPI(
+        title="Research Agent",
+        description="Specialized agent for web research and information gathering",
+        version="1.0.0",
+    )
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint"""
+        return {"status": "healthy", "agent": "research", "version": "1.0.0"}
+
+    @app.get("/status")
+    async def get_status():
+        """Get agent status"""
+        status = await research_agent.get_status()
+        return status
+
+    @app.get("/capabilities")
+    async def get_capabilities():
+        """Get agent capabilities"""
+        capabilities = await research_agent.get_capabilities()
+        return {"capabilities": capabilities}
+
+    @app.post("/a2a/tasks")
+    async def handle_a2a_task(request: dict):
+        """Handle A2A task request"""
+        try:
+            message = request.get("message", "")
+            context_id = request.get("context_id", "")
+            metadata = request.get("metadata", {})
+
+            # Generate task ID if not provided
+            import uuid
+            task_id = metadata.get("task_id", str(uuid.uuid4()))
+            metadata["task_id"] = task_id
+
+            # Store task in manager
+            await task_manager.create_task(task_id, message, context_id, metadata)
+            
+            # Process task asynchronously (don't wait for completion)
+            asyncio.create_task(process_task_async(task_id, message, context_id, metadata))
+
+            return {
+                "task_id": task_id,
+                "status": "accepted",
+                "metadata": {"agent": "research"},
+            }
+
+        except Exception as e:
+            logger.error(f"Error handling A2A task: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "metadata": {"agent": "research"},
+            }
+    
+    async def process_task_async(task_id: str, message: str, context_id: str, metadata: dict):
+        """Process task asynchronously and update task manager"""
+        try:
+            # Mark as in progress
+            await task_manager.start_task_processing(task_id)
+            
+            # Process the task
+            result = await research_agent.handle_a2a_request(
+                message=message,
+                context_id=context_id,
+                metadata=metadata
+            )
+            
+            # Update task manager with result
+            if result.get("status") == "completed":
+                await task_manager.complete_task(task_id, result)
+            else:
+                await task_manager.fail_task(task_id, result.get("error", "Unknown error"))
+                
+        except Exception as e:
+            logger.error(f"Error processing task {task_id}: {e}")
+            await task_manager.fail_task(task_id, str(e))
+
+    @app.get("/a2a/tasks/{task_id}")
+    async def get_task_status(task_id: str, wait: bool = False):
+        """Get task status (for A2A protocol)"""
+        task = await task_manager.get_task(task_id, wait=wait)
+        
+        if not task:
+            return {
+                "task_id": task_id,
+                "status": "not_found",
+                "error": f"Task {task_id} not found"
+            }
+        
+        # Format response based on task status
+        if task["status"] == "completed":
+            return task["result"] if task["result"] else {
+                "task_id": task_id,
+                "status": "completed",
+                "result": {},
+                "metadata": {"agent": "research"}
+            }
+        elif task["status"] == "failed":
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "error": task.get("error", "Task failed"),
+                "metadata": {"agent": "research"}
+            }
+        else:
+            return {
+                "task_id": task_id,
+                "status": task["status"],
+                "metadata": {"agent": "research"}
+            }
+
+    @app.on_event("startup")
+    async def startup_event():
+        """Start the research agent on app startup"""
+        await research_agent.start()
+        logger.info("Research agent service started")
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        """Stop the research agent on app shutdown"""
+        await research_agent.stop()
+        logger.info("Research agent service stopped")
+
+    return app
+
+
+async def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(description="Run the Research Agent")
+    parser.add_argument(
+        "--port", type=int, default=8001, help="Port to run the agent on"
+    )
+    parser.add_argument(
+        "--model", type=str, default="openai:gpt-4o", help="Model to use for the agent"
+    )
+    parser.add_argument(
+        "--redis-url",
+        type=str,
+        default=os.getenv("REDIS_URL", "redis://localhost:6379"),
+        help="Redis URL for context storage",
+    )
+
+    args = parser.parse_args()
+
+    # Initialize dependencies
+    logger.info("Initializing Research Agent...")
+
+    # Create Redis connection
+    redis_pool = await create_redis_pool(args.redis_url)
+
+    # Initialize A2A manager
+    a2a_manager = A2AManager(timeout=30)
+
+    # Initialize context store
+    context_store = ContextStore(redis_pool)
+
+    # Create research agent
+    research_agent = ResearchAgent(
+        a2a_manager=a2a_manager,
+        context_store=context_store,
+        model=args.model,
+    )
+
+    # Create FastAPI app
+    app = create_app(research_agent)
+
+    # Run the server
+    config = uvicorn.Config(
+        app=app,
+        host="0.0.0.0",
+        port=args.port,
+        log_level="info",
+    )
+    server = uvicorn.Server(config)
+
+    logger.info(f"Starting Research Agent on port {args.port}...")
+    await server.serve()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
