@@ -62,10 +62,11 @@
 
 ### Docker Infrastructure ✅
 - [x] Frontend Dockerfile created
+- [x] Backend Dockerfile updated to use UV package manager with pyproject.toml
 - [x] Complete docker-compose.yml
 - [x] Environment configuration (.env template)
 - [x] Dependency version fixes (pydantic-ai 0.4.11, fastmcp 2.11.1)
-- [x] All Docker services build successfully
+- [x] All Docker services build successfully with UV-based installation
 - [x] Frontend build error fixed (Tailwind CSS border-border class)
 - [x] Missing ag_ui_handler.py module created
 - [x] OpenTelemetry instrumentation dependencies added

@@ -216,8 +216,8 @@ httpx>=0.25.0
 
 ### Docker Commands
 ```bash
-# Build and run all services
-docker-compose up -d
+# Build and run all services (UV-based build)
+docker-compose up --build -d
 
 # View logs
 docker-compose logs -f backend
@@ -225,6 +225,9 @@ docker-compose logs -f backend
 # Rebuild after changes
 docker-compose build backend
 docker-compose up -d backend
+
+# Note: Docker builds now use UV package manager with pyproject.toml
+# UV is installed globally in containers for faster dependency resolution
 ```
 
 ### Development Commands

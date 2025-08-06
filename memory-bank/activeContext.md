@@ -18,6 +18,15 @@
 
 ### Completed (Current Session - January 6, 2025)
 
+26. **Docker Configuration Updates for UV/pyproject.toml** (COMPLETED)
+    - Updated Dockerfile.backend to use UV package manager instead of pip
+    - Configured UV installation globally for both root and non-root users
+    - Modified Dockerfile to copy and install from pyproject.toml instead of requirements.txt
+    - Removed unnecessary README.md copy operation from Dockerfile
+    - Ensured all agent services in docker-compose.yml use the updated Dockerfile
+    - UV binaries moved to /usr/local/bin for global access
+    - Docker builds now use `uv pip install --system --no-cache .` for dependency installation
+
 25. **Backend Package Management Modernization** (COMPLETED)
     - Created comprehensive backend/pyproject.toml with UV package management
     - Configured Ruff for production-grade linting and formatting

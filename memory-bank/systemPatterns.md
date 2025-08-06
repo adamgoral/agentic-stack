@@ -145,7 +145,18 @@ agentic-stack/
 
 ### Development Tools
 - **UV**: Fast Python package management (Rust-based)
+  - Installed globally in Docker containers at /usr/local/bin
+  - Used with `--system` flag to install to system Python
+  - Replaces pip for faster dependency resolution
 - **Ruff**: Fast Python linting and formatting (Rust-based)
 - **pytest**: Testing with async support and coverage
 - **mypy**: Static type checking
 - **bandit**: Security vulnerability scanning
+
+### Docker Build Process
+1. Install system dependencies (gcc, g++, curl)
+2. Install UV package manager globally
+3. Copy pyproject.toml for dependency caching
+4. Install dependencies with `uv pip install --system --no-cache .`
+5. Copy application code
+6. Switch to non-root user for security
