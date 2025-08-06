@@ -87,8 +87,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - PORT=8001
+      - DOCKER_ENV=true
     depends_on:
       - redis
+      - mcp-web-search
     volumes:
       - ./backend:/app
     command: python agents/run_research_agent.py --port 8001

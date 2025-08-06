@@ -9,6 +9,8 @@ import os
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 import asyncio
+import httpx
+import re
 
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerSSE
@@ -32,6 +34,15 @@ class CodeAgent:
         self.a2a_manager = a2a_manager
         self.context_store = context_store
         self.is_running = False
+        
+        # Determine if we're running in Docker
+        self.is_docker = os.path.exists("/.dockerenv") or os.getenv("DOCKER_ENV") == "true"
+        
+        # Set MCP server base URL
+        self.mcp_base_url = "http://mcp-python-executor:3002" if self.is_docker else "http://localhost:3002"
+        
+        # HTTP client for MCP server calls
+        self.http_client = None
 
         # Initialize MCP connection to Python executor server
         self.mcp_servers = self._initialize_mcp_servers()
@@ -116,6 +127,9 @@ class CodeAgent:
         """Start the code agent"""
         self.is_running = True
         logger.info("Code agent started")
+        
+        # Initialize HTTP client
+        self.http_client = httpx.AsyncClient(timeout=30.0)
 
         # Connect to MCP servers
         for name, server in self.mcp_servers.items():
@@ -128,6 +142,10 @@ class CodeAgent:
     async def stop(self):
         """Stop the code agent"""
         self.is_running = False
+        
+        # Close HTTP client
+        if self.http_client:
+            await self.http_client.aclose()
 
         # Disconnect from MCP servers
         for name, server in self.mcp_servers.items():
@@ -224,6 +242,175 @@ class CodeAgent:
                 task_state.fail(str(e))
                 await self.context_store.store_task(task_state)
             raise
+
+    async def execute_code(self, code: str, timeout: int = 30) -> Dict[str, Any]:
+        """
+        Execute Python code using the MCP Python executor server
+        
+        Args:
+            code: Python code to execute
+            timeout: Execution timeout in seconds
+            
+        Returns:
+            Execution results from MCP server
+        """
+        if not self.http_client:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
+        try:
+            # First validate the code syntax
+            validation_result = await self.validate_code(code)
+            if not validation_result.get("valid", False):
+                return {
+                    "success": False,
+                    "error": validation_result.get("error", "Invalid Python syntax"),
+                    "output": ""
+                }
+            
+            # Execute the code
+            url = f"{self.mcp_base_url}/tools/execute_python"
+            payload = {
+                "code": code,
+                "timeout": timeout
+            }
+            
+            logger.info(f"Executing code via MCP server at {url}")
+            logger.debug(f"Code to execute: {code[:200]}...")
+            
+            response = await self.http_client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                execution_result = result.get("result", {})
+                logger.info(f"Code execution completed successfully")
+                return execution_result
+            else:
+                error_msg = result.get("error", "Unknown execution error")
+                logger.error(f"Code execution failed: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "output": ""
+                }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error calling MCP server: {e.response.status_code} - {e.response.text}")
+            return {
+                "success": False,
+                "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}",
+                "output": ""
+            }
+        except httpx.RequestError as e:
+            logger.error(f"Request error calling MCP server: {e}")
+            
+            # Try fallback URL if primary fails
+            fallback_url = "http://localhost:3002/tools/execute_python" if self.is_docker else "http://mcp-python-executor:3002/tools/execute_python"
+            
+            try:
+                logger.info(f"Trying fallback URL: {fallback_url}")
+                response = await self.http_client.post(fallback_url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                if result.get("success"):
+                    return result.get("result", {})
+                    
+            except Exception as fallback_error:
+                logger.error(f"Fallback also failed: {fallback_error}")
+            
+            return {
+                "success": False,
+                "error": f"Failed to connect to MCP server: {str(e)}",
+                "output": ""
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error executing code: {e}")
+            return {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "output": ""
+            }
+    
+    async def validate_code(self, code: str) -> Dict[str, Any]:
+        """
+        Validate Python code syntax using the MCP Python executor server
+        
+        Args:
+            code: Python code to validate
+            
+        Returns:
+            Validation results from MCP server
+        """
+        if not self.http_client:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
+        try:
+            url = f"{self.mcp_base_url}/tools/validate_python"
+            payload = {"code": code}
+            
+            logger.debug(f"Validating code syntax via MCP server")
+            
+            response = await self.http_client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                validation_result = result.get("result", {})
+                return validation_result
+            else:
+                return {
+                    "valid": False,
+                    "error": result.get("error", "Validation failed")
+                }
+                
+        except Exception as e:
+            logger.error(f"Error validating code: {e}")
+            # Return as valid to allow execution attempt
+            return {"valid": True, "error": ""}
+    
+    async def analyze_code(self, code: str) -> Dict[str, Any]:
+        """
+        Analyze Python code for metrics and potential issues
+        
+        Args:
+            code: Python code to analyze
+            
+        Returns:
+            Analysis results from MCP server
+        """
+        if not self.http_client:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
+        try:
+            url = f"{self.mcp_base_url}/tools/analyze_code"
+            payload = {"code": code}
+            
+            logger.debug(f"Analyzing code via MCP server")
+            
+            response = await self.http_client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                return result.get("result", {})
+            else:
+                return {
+                    "lines": 0,
+                    "complexity": "unknown",
+                    "error": result.get("error", "Analysis failed")
+                }
+                
+        except Exception as e:
+            logger.error(f"Error analyzing code: {e}")
+            return {
+                "lines": 0,
+                "complexity": "unknown",
+                "error": str(e)
+            }
 
     def _extract_code_snippets(self, response: str) -> List[Dict[str, str]]:
         """Extract code snippets from the response"""

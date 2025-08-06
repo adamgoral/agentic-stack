@@ -9,6 +9,8 @@ import os
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 import asyncio
+import httpx
+import re
 
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerSSE
@@ -32,6 +34,15 @@ class ResearchAgent:
         self.a2a_manager = a2a_manager
         self.context_store = context_store
         self.is_running = False
+        
+        # Determine if we're running in Docker
+        self.is_docker = os.path.exists("/.dockerenv") or os.getenv("DOCKER_ENV") == "true"
+        
+        # Set MCP server base URL
+        self.mcp_base_url = "http://mcp-web-search:3001" if self.is_docker else "http://localhost:3001"
+        
+        # HTTP client for MCP server calls
+        self.http_client = None
 
         # Initialize MCP connection to web search server
         self.mcp_servers = self._initialize_mcp_servers()
@@ -107,6 +118,9 @@ class ResearchAgent:
         """Start the research agent"""
         self.is_running = True
         logger.info("Research agent started")
+        
+        # Initialize HTTP client
+        self.http_client = httpx.AsyncClient(timeout=30.0)
 
         # Connect to MCP servers
         for name, server in self.mcp_servers.items():
@@ -119,6 +133,10 @@ class ResearchAgent:
     async def stop(self):
         """Stop the research agent"""
         self.is_running = False
+        
+        # Close HTTP client
+        if self.http_client:
+            await self.http_client.aclose()
 
         # Disconnect from MCP servers
         for name, server in self.mcp_servers.items():
@@ -158,44 +176,60 @@ class ResearchAgent:
             )
             task_state.start()
 
-            # Run the research task
-            async with self.agent as agent:
-                # Enhance the prompt with research-specific guidance
-                research_prompt = f"""
-                Research Task: {task}
+            # Execute actual research using MCP server
+            logger.info("Executing research via MCP server...")
+            search_results = await self.execute_research(task)
+            
+            # Format the findings based on actual search results
+            if search_results.get("success", False) and search_results.get("results"):
+                findings = self._format_research_findings(task, search_results)
+                sources = [result.get("url", "") for result in search_results.get("results", [])]
+                confidence = "high" if len(search_results.get("results", [])) >= 3 else "medium"
+            else:
+                # Fallback to using the agent if MCP server fails
+                logger.warning("MCP server call failed, falling back to agent-based research")
                 
-                Please conduct thorough research on this topic. Use web search to:
-                1. Find authoritative and recent sources
-                2. Gather multiple perspectives
-                3. Verify key facts
-                4. Identify trends or patterns
-                
-                Provide a comprehensive response that includes:
-                - Key findings with source citations
-                - Summary of important points
-                - Any conflicting information or debates
-                - Recommendations or insights based on the research
-                """
+                async with self.agent as agent:
+                    # Enhance the prompt with research-specific guidance
+                    research_prompt = f"""
+                    Research Task: {task}
+                    
+                    Please conduct thorough research on this topic. Use web search to:
+                    1. Find authoritative and recent sources
+                    2. Gather multiple perspectives
+                    3. Verify key facts
+                    4. Identify trends or patterns
+                    
+                    Provide a comprehensive response that includes:
+                    - Key findings with source citations
+                    - Summary of important points
+                    - Any conflicting information or debates
+                    - Recommendations or insights based on the research
+                    """
+    
+                    # Execute the research
+                    response = await agent.run(research_prompt)
+                    findings = str(response)
+                    sources = self._extract_sources(findings)
+                    confidence = self._assess_confidence(findings)
+            
+            # Process and structure the results
+            results = {
+                "findings": findings,
+                "sources": sources,
+                "confidence": confidence,
+                "timestamp": datetime.utcnow().isoformat(),
+                "task_id": task_state.task_id,
+                "agent": self.agent_name,
+                "mcp_success": search_results.get("success", False),
+            }
 
-                # Execute the research
-                response = await agent.run(research_prompt)
+            # Update task state
+            task_state.complete(results)
+            await self.context_store.store_task(task_state)
 
-                # Process and structure the results
-                results = {
-                    "findings": str(response),
-                    "sources": self._extract_sources(str(response)),
-                    "confidence": self._assess_confidence(str(response)),
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "task_id": task_state.task_id,
-                    "agent": self.agent_name,
-                }
-
-                # Update task state
-                task_state.complete(results)
-                await self.context_store.store_task(task_state)
-
-                logger.info(f"Research task completed: {task_state.task_id}")
-                return results
+            logger.info(f"Research task completed: {task_state.task_id}")
+            return results
 
         except Exception as e:
             logger.error(f"Error processing research task: {e}")
@@ -204,6 +238,71 @@ class ResearchAgent:
                 await self.context_store.store_task(task_state)
             raise
 
+    def _format_research_findings(self, task: str, search_results: Dict[str, Any]) -> str:
+        """
+        Format search results into a comprehensive research report
+        
+        Args:
+            task: The original research task
+            search_results: Results from MCP server
+            
+        Returns:
+            Formatted research findings
+        """
+        findings = []
+        
+        # Header
+        findings.append(f"# Research Results for: {task}\n")
+        findings.append(f"*Generated at: {datetime.utcnow().isoformat()}*\n")
+        
+        # Check if we have results
+        results = search_results.get("results", [])
+        
+        if not results:
+            findings.append("\n## No Results Found\n")
+            findings.append("No search results were found for this query. Please try refining your search terms.\n")
+            return "\n".join(findings)
+        
+        # Summary section
+        findings.append(f"\n## Summary\n")
+        findings.append(f"Found {len(results)} relevant sources for your research query.\n")
+        
+        # Key Findings section
+        findings.append("\n## Key Findings\n")
+        
+        for i, result in enumerate(results, 1):
+            title = result.get("title", f"Result {i}")
+            url = result.get("url", "")
+            snippet = result.get("snippet", "No description available")
+            source = result.get("source", "Unknown source")
+            published = result.get("published", "")
+            
+            findings.append(f"\n### {i}. {title}")
+            findings.append(f"**Source:** {source}")
+            if url:
+                findings.append(f"**URL:** {url}")
+            if published:
+                findings.append(f"**Published:** {published}")
+            findings.append(f"\n{snippet}\n")
+        
+        # Sources section
+        findings.append("\n## Sources\n")
+        for i, result in enumerate(results, 1):
+            url = result.get("url", "")
+            title = result.get("title", f"Result {i}")
+            if url:
+                findings.append(f"{i}. [{title}]({url})")
+            else:
+                findings.append(f"{i}. {title}")
+        
+        # Additional notes
+        findings.append("\n## Notes\n")
+        findings.append("- Results are ordered by relevance")
+        findings.append("- Consider cross-referencing multiple sources for accuracy")
+        findings.append("- Some results may be from mock data during testing phase")
+        
+        return "\n".join(findings)
+    
     def _extract_sources(self, response: str) -> List[str]:
         """Extract source citations from the response"""
         # This is a simplified implementation
@@ -222,6 +321,95 @@ class ResearchAgent:
         sources.extend(citations)
 
         return list(set(sources))  # Remove duplicates
+    
+    async def execute_research(self, query: str, max_results: int = 5) -> Dict[str, Any]:
+        """
+        Execute actual research using MCP server tools
+        
+        Args:
+            query: The research query
+            max_results: Maximum number of results to return
+            
+        Returns:
+            Research results from MCP server
+        """
+        if not self.http_client:
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+        
+        try:
+            # Call the search_web tool on the MCP server
+            url = f"{self.mcp_base_url}/tools/search_web"
+            payload = {
+                "query": query,
+                "max_results": max_results,
+                "search_type": "general"
+            }
+            
+            logger.info(f"Calling MCP server at {url} with query: {query[:100]}...")
+            
+            response = await self.http_client.post(url, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if result.get("success"):
+                search_results = result.get("result", {})
+                logger.info(f"Successfully retrieved {len(search_results.get('results', []))} search results")
+                return search_results
+            else:
+                error_msg = result.get("error", "Unknown error occurred")
+                logger.error(f"MCP server returned error: {error_msg}")
+                return {
+                    "results": [],
+                    "query": query,
+                    "error": error_msg,
+                    "success": False
+                }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error calling MCP server: {e.response.status_code} - {e.response.text}")
+            return {
+                "results": [],
+                "query": query,
+                "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}",
+                "success": False
+            }
+        except httpx.RequestError as e:
+            logger.error(f"Request error calling MCP server: {e}")
+            # Try fallback URL if primary fails
+            if self.is_docker:
+                # Try local URL as fallback
+                fallback_url = "http://localhost:3001/tools/search_web"
+            else:
+                # Try Docker URL as fallback
+                fallback_url = "http://mcp-web-search:3001/tools/search_web"
+            
+            try:
+                logger.info(f"Trying fallback URL: {fallback_url}")
+                response = await self.http_client.post(fallback_url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                if result.get("success"):
+                    return result.get("result", {})
+                    
+            except Exception as fallback_error:
+                logger.error(f"Fallback also failed: {fallback_error}")
+            
+            return {
+                "results": [],
+                "query": query,
+                "error": str(e),
+                "success": False
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error calling MCP server: {e}")
+            return {
+                "results": [],
+                "query": query,
+                "error": str(e),
+                "success": False
+            }
 
     def _assess_confidence(self, response: str) -> str:
         """Assess confidence level based on the response"""
