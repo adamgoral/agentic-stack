@@ -91,7 +91,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: python -m agents.research_agent --port 8001
+    command: python agents/run_research_agent.py --port 8001
 
   code-agent:
     build:
@@ -110,7 +110,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: python -m agents.code_agent --port 8002
+    command: python agents/run_code_agent.py --port 8002
 
   analytics-agent:
     build:
@@ -130,7 +130,7 @@ services:
       - postgres
     volumes:
       - ./backend:/app
-    command: python -m agents.analytics_agent --port 8003
+    command: python agents/run_analytics_agent.py --port 8003
 
   # MCP Servers
   mcp-web-search:

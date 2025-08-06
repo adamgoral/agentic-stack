@@ -241,6 +241,7 @@ class OrchestratorAgent:
         Execute subtasks in parallel or sequence based on dependencies
         """
         results = {}
+        task_ids = {}  # Track task IDs for each agent
 
         # Group tasks by dependency level
         dependency_levels = {}
@@ -255,23 +256,114 @@ class OrchestratorAgent:
             level_tasks = dependency_levels[level]
 
             # Execute tasks at the same level in parallel
-            tasks = []
+            delegation_tasks = []
             for task in level_tasks:
                 coro = self.delegate_to_agent(
                     agent_name=task["agent"], task=task["task"], context_id=context_id
                 )
-                tasks.append(coro)
+                delegation_tasks.append(coro)
 
-            # Wait for all tasks at this level to complete
-            level_results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Send tasks to agents and get task IDs
+            level_delegations = await asyncio.gather(*delegation_tasks, return_exceptions=True)
 
-            # Store results
-            for task, result in zip(level_tasks, level_results):
-                if isinstance(result, Exception):
-                    results[task["agent"]] = {"error": str(result)}
+            # Store task IDs for result retrieval
+            for task, delegation_result in zip(level_tasks, level_delegations):
+                if isinstance(delegation_result, Exception):
+                    results[task["agent"]] = {
+                        "status": "error",
+                        "error": str(delegation_result),
+                        "task": task["task"]
+                    }
                 else:
-                    results[task["agent"]] = result
+                    task_id = delegation_result.get("task_id")
+                    if task_id:
+                        task_ids[task["agent"]] = {
+                            "task_id": task_id,
+                            "task": task["task"],
+                            "agent_url": self.agent_endpoints[task["agent"]]
+                        }
+                    else:
+                        logger.warning(f"No task_id received from {task['agent']}")
+                        results[task["agent"]] = delegation_result
 
+        # Wait for all tasks to complete and collect results
+        if task_ids:
+            results = await self.collect_task_results(task_ids, results)
+
+        return results
+
+    async def collect_task_results(
+        self, task_ids: Dict[str, Dict[str, Any]], partial_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Collect results from delegated tasks
+        
+        Args:
+            task_ids: Dictionary of agent names to task info
+            partial_results: Results collected so far (including errors)
+            
+        Returns:
+            Complete results from all agents
+        """
+        results = partial_results.copy()
+        
+        # Create tasks to collect results from each agent
+        collection_tasks = []
+        agent_names = []
+        
+        for agent_name, task_info in task_ids.items():
+            if agent_name not in results:  # Skip if already have error
+                coro = self.a2a_manager.get_task_result(
+                    agent_url=task_info["agent_url"],
+                    task_id=task_info["task_id"],
+                    wait=True  # Wait for task completion
+                )
+                collection_tasks.append(coro)
+                agent_names.append(agent_name)
+        
+        if collection_tasks:
+            # Wait for all results with timeout
+            try:
+                task_results = await asyncio.wait_for(
+                    asyncio.gather(*collection_tasks, return_exceptions=True),
+                    timeout=60.0  # 60 second timeout for all tasks
+                )
+                
+                # Process collected results
+                for agent_name, task_result in zip(agent_names, task_results):
+                    if isinstance(task_result, Exception):
+                        results[agent_name] = {
+                            "status": "error",
+                            "error": f"Failed to get result: {str(task_result)}",
+                            "task": task_ids[agent_name]["task"]
+                        }
+                    else:
+                        # Extract the actual result from the A2A response
+                        if task_result.get("status") == "completed":
+                            actual_result = task_result.get("result", {})
+                            results[agent_name] = {
+                                "status": "completed",
+                                "result": actual_result,
+                                "task": task_ids[agent_name]["task"],
+                                "metadata": task_result.get("metadata", {})
+                            }
+                        else:
+                            results[agent_name] = {
+                                "status": task_result.get("status", "unknown"),
+                                "error": task_result.get("error", "Task did not complete successfully"),
+                                "task": task_ids[agent_name]["task"]
+                            }
+                            
+            except asyncio.TimeoutError:
+                logger.error("Timeout waiting for agent results")
+                for agent_name in agent_names:
+                    if agent_name not in results:
+                        results[agent_name] = {
+                            "status": "timeout",
+                            "error": "Task timed out after 60 seconds",
+                            "task": task_ids[agent_name]["task"]
+                        }
+        
         return results
 
     async def run_ag_ui(self, message: str, state: ConversationState) -> AsyncGenerator[str, None]:
@@ -307,21 +399,11 @@ class OrchestratorAgent:
             # Synthesize results
             yield json.dumps({"type": "status", "message": "Synthesizing results..."})
 
-            # Use the main agent to synthesize
-            async with self.agent as agent:
-                synthesis_prompt = f"""
-                User request: {message}
-                
-                Results from specialized agents:
-                {json.dumps(results, indent=2)}
-                
-                Please synthesize these results into a coherent response.
-                """
-
-                response = await agent.run(synthesis_prompt)
-
-                # Stream the synthesized response
-                yield json.dumps({"type": "text_message", "content": str(response)})
+            # Aggregate and format results
+            aggregated_response = await self.aggregate_results(message, results)
+            
+            # Stream the aggregated response
+            yield json.dumps({"type": "text_message", "content": aggregated_response})
 
             # Update state
             state.task_history.append(
@@ -367,6 +449,170 @@ class OrchestratorAgent:
             # Check if server is connected
             status[name] = hasattr(server, "_client") and server._client is not None
         return status
+
+    async def aggregate_results(self, original_request: str, results: Dict[str, Any]) -> str:
+        """
+        Aggregate results from multiple agents into a coherent response
+        
+        Args:
+            original_request: The original user request
+            results: Results from all agents
+            
+        Returns:
+            Aggregated response as a string
+        """
+        # Check if we have any successful results
+        successful_results = {
+            agent: data for agent, data in results.items()
+            if data.get("status") == "completed" and "result" in data
+        }
+        
+        if not successful_results:
+            # No successful results, report errors
+            error_summary = "I encountered issues while processing your request:\n\n"
+            for agent, data in results.items():
+                if data.get("status") in ["error", "failed"]:
+                    error_msg = data.get('error', 'Unknown error')
+                    # Truncate very long error messages
+                    if len(error_msg) > 200:
+                        error_msg = error_msg[:200] + "..."
+                    error_summary += f"- {agent.capitalize()} Agent: {error_msg}\n"
+                elif data.get("status") == "timeout":
+                    error_summary += f"- {agent.capitalize()} Agent: Request timed out\n"
+                elif data.get("status") and data.get("status") != "completed":
+                    error_summary += f"- {agent.capitalize()} Agent: Status {data.get('status')}\n"
+            
+            if error_summary == "I encountered issues while processing your request:\n\n":
+                # No specific errors found, add generic message
+                error_summary += "- Unable to process request due to system issues\n"
+            
+            return error_summary + "\nPlease try again or rephrase your request."
+        
+        # Build aggregated response
+        response_parts = []
+        
+        # Add a contextual introduction
+        response_parts.append(f"Based on your request: '{original_request}', here's what I found:\n")
+        
+        # Process results from each agent
+        for agent_name, agent_data in successful_results.items():
+            result = agent_data.get("result", {})
+            
+            if agent_name == "research":
+                # Handle research agent results
+                findings = result.get("findings", "")
+                sources = result.get("sources", [])
+                confidence = result.get("confidence", "medium")
+                
+                if findings:
+                    response_parts.append("\n## Research Findings:\n")
+                    response_parts.append(findings)
+                    if sources:
+                        response_parts.append("\n**Sources:**")
+                        for source in sources[:5]:  # Limit to top 5 sources
+                            response_parts.append(f"- {source}")
+                    if confidence:
+                        response_parts.append(f"\n*Confidence level: {confidence}*")
+            
+            elif agent_name == "code":
+                # Handle code agent results
+                code_output = result.get("code", result.get("output", ""))
+                explanation = result.get("explanation", "")
+                language = result.get("language", "python")
+                
+                if code_output:
+                    response_parts.append("\n## Code Solution:\n")
+                    if explanation:
+                        response_parts.append(explanation)
+                    response_parts.append(f"\n```{language}\n{code_output}\n```")
+            
+            elif agent_name == "analytics":
+                # Handle analytics agent results
+                analysis = result.get("analysis", "")
+                metrics = result.get("metrics", {})
+                insights = result.get("insights", [])
+                
+                if analysis:
+                    response_parts.append("\n## Data Analysis:\n")
+                    response_parts.append(analysis)
+                    if metrics:
+                        response_parts.append("\n**Key Metrics:**")
+                        for key, value in metrics.items():
+                            response_parts.append(f"- {key}: {value}")
+                    if insights:
+                        response_parts.append("\n**Insights:**")
+                        for insight in insights:
+                            response_parts.append(f"- {insight}")
+            
+            else:
+                # Handle generic agent results
+                if isinstance(result, dict):
+                    output = result.get("output", result.get("response", str(result)))
+                else:
+                    output = str(result)
+                
+                if output:
+                    response_parts.append(f"\n## {agent_name.capitalize()} Agent Results:\n")
+                    response_parts.append(output)
+        
+        # Add any partial results or errors as footnotes
+        failed_agents = [
+            agent for agent, data in results.items()
+            if data.get("status") != "completed"
+        ]
+        
+        if failed_agents:
+            response_parts.append("\n---\n")
+            response_parts.append("*Note: Some agents encountered issues:*\n")
+            for agent in failed_agents:
+                status = results[agent].get("status", "unknown")
+                error = results[agent].get("error", "No details available")
+                response_parts.append(f"- {agent.capitalize()}: {status} - {error}")
+        
+        # Join all parts into final response
+        final_response = "\n".join(response_parts)
+        
+        # If response is too short or empty, use LLM to synthesize
+        if len(final_response.strip()) < 100:
+            # Fallback to LLM synthesis
+            return await self.synthesize_with_llm(original_request, results)
+        
+        return final_response
+    
+    async def synthesize_with_llm(self, original_request: str, results: Dict[str, Any]) -> str:
+        """
+        Use LLM to synthesize results when structured aggregation is insufficient
+        
+        Args:
+            original_request: The original user request
+            results: Results from all agents
+            
+        Returns:
+            LLM-synthesized response
+        """
+        try:
+            async with self.agent as agent:
+                synthesis_prompt = f"""
+                User request: {original_request}
+                
+                Results from specialized agents:
+                {json.dumps(results, indent=2)}
+                
+                Please synthesize these results into a clear, coherent response that:
+                1. Directly addresses the user's request
+                2. Integrates information from all successful agents
+                3. Highlights key findings and insights
+                4. Mentions any limitations or failures transparently
+                
+                Format the response in a user-friendly way with clear sections.
+                """
+                
+                response = await agent.run(synthesis_prompt)
+                return str(response)
+        except Exception as e:
+            logger.error(f"Error synthesizing with LLM: {e}")
+            # Fallback to simple concatenation
+            return f"Results from processing your request:\n{json.dumps(results, indent=2)}"
 
     async def get_agent_status(self) -> Dict[str, Any]:
         """Get detailed status of all agents"""

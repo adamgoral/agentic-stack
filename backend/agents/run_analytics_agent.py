@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.analytics_agent import AnalyticsAgent
+from agents.agent_task_manager import task_manager
 from protocols.a2a_manager import A2AManager
 from storage.context_store import ContextStore
 from storage.redis_config import create_redis_pool
@@ -76,18 +77,16 @@ def create_app(analytics_agent: AnalyticsAgent) -> FastAPI:
             task_id = metadata.get("task_id", str(uuid.uuid4()))
             metadata["task_id"] = task_id
 
-            # Process task asynchronously
-            result = await analytics_agent.handle_a2a_request(
-                message=message,
-                context_id=context_id,
-                metadata=metadata
-            )
+            # Store task in manager
+            await task_manager.create_task(task_id, message, context_id, metadata)
+            
+            # Process task asynchronously (don't wait for completion)
+            asyncio.create_task(process_task_async(task_id, message, context_id, metadata))
 
             return {
                 "task_id": task_id,
-                "status": result.get("status", "accepted"),
-                "result": result.get("result"),
-                "metadata": result.get("metadata", {}),
+                "status": "accepted",
+                "metadata": {"agent": "analytics"},
             }
 
         except Exception as e:
@@ -97,16 +96,63 @@ def create_app(analytics_agent: AnalyticsAgent) -> FastAPI:
                 "error": str(e),
                 "metadata": {"agent": "analytics"},
             }
+    
+    async def process_task_async(task_id: str, message: str, context_id: str, metadata: dict):
+        """Process task asynchronously and update task manager"""
+        try:
+            # Mark as in progress
+            await task_manager.start_task_processing(task_id)
+            
+            # Process the task
+            result = await analytics_agent.handle_a2a_request(
+                message=message,
+                context_id=context_id,
+                metadata=metadata
+            )
+            
+            # Update task manager with result
+            if result.get("status") == "completed":
+                await task_manager.complete_task(task_id, result)
+            else:
+                await task_manager.fail_task(task_id, result.get("error", "Unknown error"))
+                
+        except Exception as e:
+            logger.error(f"Error processing task {task_id}: {e}")
+            await task_manager.fail_task(task_id, str(e))
 
     @app.get("/a2a/tasks/{task_id}")
-    async def get_task_status(task_id: str):
+    async def get_task_status(task_id: str, wait: bool = False):
         """Get task status (for A2A protocol)"""
-        # In a full implementation, this would retrieve task status from storage
-        return {
-            "task_id": task_id,
-            "status": "completed",
-            "message": "Task status retrieval not yet implemented",
-        }
+        task = await task_manager.get_task(task_id, wait=wait)
+        
+        if not task:
+            return {
+                "task_id": task_id,
+                "status": "not_found",
+                "error": f"Task {task_id} not found"
+            }
+        
+        # Format response based on task status
+        if task["status"] == "completed":
+            return task["result"] if task["result"] else {
+                "task_id": task_id,
+                "status": "completed",
+                "result": {},
+                "metadata": {"agent": "analytics"}
+            }
+        elif task["status"] == "failed":
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "error": task.get("error", "Task failed"),
+                "metadata": {"agent": "analytics"}
+            }
+        else:
+            return {
+                "task_id": task_id,
+                "status": task["status"],
+                "metadata": {"agent": "analytics"}
+            }
 
     @app.on_event("startup")
     async def startup_event():
