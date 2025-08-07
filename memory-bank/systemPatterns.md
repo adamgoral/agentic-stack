@@ -71,9 +71,11 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - **Web Search**: Information retrieval (Port 3001)
 - **Transport**: HTTP/SSE for remote agent connections
 - **Implementation**: FastAPI servers with SSE endpoints at `/sse`
+- **Protocol**: JSONRPC 2.0 compliant messages for pydantic-ai compatibility
 - **Tool Execution**: HTTP POST to `/tools/{tool_name}`
 - **Health Monitoring**: GET `/health` endpoints
 - **Configuration**: No unsupported parameters (e.g., prefix removed)
+- **Message Format**: Proper JSONRPC with `jsonrpc: "2.0"`, tools list with `inputSchema`
 
 ## Critical Implementation Paths
 
@@ -279,8 +281,10 @@ agentic-stack/
 - **Proper Parameters**: Only use documented MCP client parameters
 - **No Unsupported Options**: Removed prefix parameter that caused errors
 - **HTTP/SSE Transport**: Consistent transport layer for all MCP connections
+- **JSONRPC Compliance**: Servers must send JSONRPC 2.0 formatted messages
 - **Error Recovery**: Fallback mechanisms for MCP server failures
 - **Health Monitoring**: Regular health checks on MCP endpoints
+- **Protocol Validation**: pydantic-ai validates all JSONRPC messages
 
 ### Package Management Strategy
 - Backend uses UV + pyproject.toml for modern Python packaging

@@ -157,51 +157,80 @@ async def handle_tool_call(tool_name: str, args: Dict[str, Any]) -> Dict[str, An
 
 
 async def event_stream(request: Request) -> AsyncGenerator[str, None]:
-    """Generate Server-Sent Events stream"""
+    """Generate Server-Sent Events stream for MCP protocol"""
     logger.info("Client connected to SSE endpoint")
     
-    # Send initial connection message
-    yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to Web Search MCP Server'})}\n\n"
-    
-    # Send capabilities
-    capabilities = {
-        "type": "capabilities",
-        "tools": [
-            {
-                "name": "search_web",
-                "description": "Search the web for information",
-                "parameters": {
-                    "query": {"type": "string", "required": True},
-                    "max_results": {"type": "integer", "default": 5},
-                    "search_type": {"type": "string", "default": "general"}
+    # Send initial JSONRPC initialize response
+    initialize_response = {
+        "jsonrpc": "2.0",
+        "id": "init",
+        "result": {
+            "protocolVersion": "0.1.0",
+            "capabilities": {
+                "tools": {
+                    "listTools": {}
                 }
             },
-            {
-                "name": "fetch_webpage",
-                "description": "Fetch and extract content from a webpage",
-                "parameters": {
-                    "url": {"type": "string", "required": True}
-                }
-            },
-            {
-                "name": "extract_keywords",
-                "description": "Extract keywords from text",
-                "parameters": {
-                    "text": {"type": "string", "required": True},
-                    "max_keywords": {"type": "integer", "default": 10}
-                }
+            "serverInfo": {
+                "name": "web-search",
+                "version": "1.0.0"
             }
-        ]
+        }
     }
-    yield f"data: {json.dumps(capabilities)}\n\n"
+    yield f"data: {json.dumps(initialize_response)}\n\n"
     
-    # Keep connection alive and handle incoming messages
+    # Send tools list notification
+    tools_notification = {
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "params": {
+            "tools": [
+                {
+                    "name": "search_web",
+                    "description": "Search the web for information",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "Search query"},
+                            "max_results": {"type": "integer", "description": "Maximum number of results", "default": 5},
+                            "search_type": {"type": "string", "description": "Type of search", "default": "general"}
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "fetch_webpage",
+                    "description": "Fetch and extract content from a webpage",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "url": {"type": "string", "description": "URL to fetch"}
+                        },
+                        "required": ["url"]
+                    }
+                },
+                {
+                    "name": "extract_keywords",
+                    "description": "Extract keywords from text",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "text": {"type": "string", "description": "Text to extract keywords from"},
+                            "max_keywords": {"type": "integer", "description": "Maximum keywords to extract", "default": 10}
+                        },
+                        "required": ["text"]
+                    }
+                }
+            ]
+        }
+    }
+    yield f"data: {json.dumps(tools_notification)}\n\n"
+    
+    # Keep connection alive
     try:
         while True:
-            # In a real implementation, you would read from request body for tool calls
-            # For now, just keep the connection alive
             await asyncio.sleep(30)
-            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            # Heartbeat is not needed for JSONRPC - connection is kept alive
             
     except asyncio.CancelledError:
         logger.info("Client disconnected from SSE endpoint")

@@ -21,6 +21,24 @@
 
 ### Completed (Current Session - August 7, 2025)
 
+31. **MCP Server JSONRPC Protocol Fix** (COMPLETED)
+    - **Issue Identified**: MCP servers sending non-JSONRPC messages causing pydantic validation errors
+      - Error: `pydantic_core._pydantic_core.ValidationError: 11 validation errors for JSONRPCMessage`
+      - Servers were sending custom format: `{'type': 'connected', 'message': '...'}`
+    - **Root Cause**: MCP servers not following JSONRPC 2.0 protocol required by pydantic-ai MCP client
+    - **Solution Implemented**:
+      - Updated `/backend/src/infrastructure/mcp/mcp_servers/python_executor/server.py`
+      - Updated `/backend/src/infrastructure/mcp/mcp_servers/web_search/server.py`
+      - Changed SSE event stream to send proper JSONRPC messages:
+        - Initial response with `jsonrpc: "2.0"`, protocol version, and capabilities
+        - Tools list notification with proper `inputSchema` format
+        - Removed non-standard heartbeat and connection messages
+    - **Verification**: All agents now connecting successfully to MCP servers
+      - Code agent connected to Python executor at http://mcp-python-executor:3002/sse
+      - Research agent connected to web search at http://mcp-web-search:3001/sse
+      - No more pydantic validation errors in logs
+    - **Impact**: MCP integration now fully functional with proper protocol compliance
+
 30. **Production System Verification and Memory Bank Update** (COMPLETED)
     - Confirmed all 9 Docker services operational and healthy:
       - Frontend (Next.js) on port 3000
@@ -234,6 +252,7 @@ The Agentic Stack is production-ready with enterprise architecture and clean fil
 - Agent startup simplified with direct execution scripts
 - Test organization streamlined with proper directory structure
 - **MCP Connection Fix**: Removed unsupported `prefix` parameter from MCP client initialization
+- **MCP Protocol Compliance**: Fixed JSONRPC message format in MCP servers to match pydantic-ai expectations
 
 ### Enterprise Architecture Insights
 - Clean Architecture reduces coupling and improves testability
@@ -278,6 +297,7 @@ The Agentic Stack is production-ready with enterprise architecture and clean fil
 - Result aggregation formats responses by agent type for clarity
 - 60-second timeout balances responsiveness with complex operation needs
 - **MCP Client Configuration**: Avoid unsupported parameters, stick to documented API
+- **MCP Server Protocol**: Must send JSONRPC 2.0 compliant messages for pydantic-ai compatibility
 
 ### Production Deployment Patterns
 - Docker Compose provides full 9-service orchestration

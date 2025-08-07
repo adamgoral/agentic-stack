@@ -169,49 +169,78 @@ async def handle_tool_call(tool_name: str, args: Dict[str, Any]) -> Dict[str, An
 
 
 async def event_stream(request: Request) -> AsyncGenerator[str, None]:
-    """Generate Server-Sent Events stream"""
+    """Generate Server-Sent Events stream for MCP protocol"""
     logger.info("Client connected to SSE endpoint")
     
-    # Send initial connection message
-    yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to Python Executor MCP Server'})}\n\n"
-    
-    # Send capabilities
-    capabilities = {
-        "type": "capabilities",
-        "tools": [
-            {
-                "name": "execute_python",
-                "description": "Execute Python code in a sandboxed environment",
-                "parameters": {
-                    "code": {"type": "string", "required": True},
-                    "timeout": {"type": "integer", "default": 30}
+    # Send initial JSONRPC initialize response
+    initialize_response = {
+        "jsonrpc": "2.0",
+        "id": "init",
+        "result": {
+            "protocolVersion": "0.1.0",
+            "capabilities": {
+                "tools": {
+                    "listTools": {}
                 }
             },
-            {
-                "name": "validate_python",
-                "description": "Validate Python code syntax",
-                "parameters": {
-                    "code": {"type": "string", "required": True}
-                }
-            },
-            {
-                "name": "analyze_code",
-                "description": "Analyze Python code for metrics and potential issues",
-                "parameters": {
-                    "code": {"type": "string", "required": True}
-                }
+            "serverInfo": {
+                "name": "python-executor",
+                "version": "1.0.0"
             }
-        ]
+        }
     }
-    yield f"data: {json.dumps(capabilities)}\n\n"
+    yield f"data: {json.dumps(initialize_response)}\n\n"
     
-    # Keep connection alive and handle incoming messages
+    # Send tools list notification
+    tools_notification = {
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "params": {
+            "tools": [
+                {
+                    "name": "execute_python",
+                    "description": "Execute Python code in a sandboxed environment",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "code": {"type": "string", "description": "Python code to execute"},
+                            "timeout": {"type": "integer", "description": "Execution timeout in seconds", "default": 30}
+                        },
+                        "required": ["code"]
+                    }
+                },
+                {
+                    "name": "validate_python",
+                    "description": "Validate Python code syntax",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "code": {"type": "string", "description": "Python code to validate"}
+                        },
+                        "required": ["code"]
+                    }
+                },
+                {
+                    "name": "analyze_code",
+                    "description": "Analyze Python code for metrics and potential issues",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "code": {"type": "string", "description": "Python code to analyze"}
+                        },
+                        "required": ["code"]
+                    }
+                }
+            ]
+        }
+    }
+    yield f"data: {json.dumps(tools_notification)}\n\n"
+    
+    # Keep connection alive
     try:
         while True:
-            # In a real implementation, you would read from request body for tool calls
-            # For now, just keep the connection alive
             await asyncio.sleep(30)
-            yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            # Heartbeat is not needed for JSONRPC - connection is kept alive
             
     except asyncio.CancelledError:
         logger.info("Client disconnected from SSE endpoint")

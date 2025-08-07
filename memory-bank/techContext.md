@@ -28,6 +28,7 @@
 - **FastA2A**: A2A protocol implementation
 - **AG-UI**: Agent-UI protocol (via pydantic-ai-slim[ag-ui])
 - **MCP FastMCP**: Model Context Protocol server framework (Note: HTTP/SSE implementation)
+- **MCP Protocol**: JSONRPC 2.0 compliant - servers must send proper JSONRPC messages
 
 ### Observability
 - **OpenTelemetry**: Distributed tracing
@@ -147,6 +148,7 @@ openai>=1.35.0
 anthropic>=0.25.0
 
 # MCP Support (Note: prefix parameter removed from client initialization)
+# MCP servers must send JSONRPC 2.0 compliant messages
 mcp>=0.1.0
 httpx>=0.27.0
 
@@ -328,6 +330,8 @@ bash tests/test_mcp_python_executor.sh
 - **Important**: Do not use unsupported parameters like `prefix`
 - Proper initialization: `mcp_client = MCPClient(server_params=...)`
 - Both web search and Python executor servers accessible via HTTP/SSE
+- **JSONRPC Compliance**: Servers must send JSONRPC 2.0 messages with proper format
+- **Message Structure**: Initial response with protocol version, tools list with inputSchema
 
 ### Database Configuration
 - PostgreSQL "agent" database created automatically
