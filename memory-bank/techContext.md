@@ -7,6 +7,7 @@
 - **FastAPI**: Web framework for API endpoints
 - **PydanticAI**: Agent framework with protocol support
 - **Redis**: State storage and caching
+- **PostgreSQL**: Database with "agent" database created
 - **Docker/Docker Compose**: Containerization and orchestration
 
 ### Frontend Stack
@@ -26,7 +27,7 @@
 ### Protocol Libraries
 - **FastA2A**: A2A protocol implementation
 - **AG-UI**: Agent-UI protocol (via pydantic-ai-slim[ag-ui])
-- **MCP FastMCP**: Model Context Protocol server framework
+- **MCP FastMCP**: Model Context Protocol server framework (Note: HTTP/SSE implementation)
 
 ### Observability
 - **OpenTelemetry**: Distributed tracing
@@ -42,6 +43,7 @@
 - Node.js 18+
 - Docker & Docker Compose
 - Redis (or use Docker)
+- PostgreSQL (or use Docker)
 - UV (for Python package management)
 ```
 
@@ -54,6 +56,9 @@ BRAVE_API_KEY=          # For web search MCP server
 
 # Database
 DB_PASSWORD=agentpass123
+POSTGRES_USER=agent
+POSTGRES_PASSWORD=agentpass123
+POSTGRES_DB=agent
 
 # Redis Configuration
 REDIS_HOST=localhost
@@ -79,6 +84,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
 # Environment
 ENV=development
 LOG_LEVEL=INFO
+DOCKER_ENV=true  # Set in Docker containers
 ```
 
 ## Technical Constraints
@@ -97,6 +103,7 @@ LOG_LEVEL=INFO
 - Sandboxed code execution
 - Input sanitization
 - Rate limiting on endpoints
+- Non-root Docker containers
 
 ## Package Management (PRODUCTION IMPLEMENTATION)
 
@@ -139,7 +146,7 @@ starlette>=0.37.0
 openai>=1.35.0
 anthropic>=0.25.0
 
-# MCP Support
+# MCP Support (Note: prefix parameter removed from client initialization)
 mcp>=0.1.0
 httpx>=0.27.0
 
@@ -227,6 +234,8 @@ docker compose logs -f backend
 docker compose logs -f research-agent
 docker compose logs -f code-agent
 docker compose logs -f analytics-agent
+docker compose logs -f mcp-web-search
+docker compose logs -f mcp-python-executor
 
 # Rebuild specific services after changes
 docker compose build backend
@@ -235,12 +244,16 @@ docker compose up -d backend
 # Check status of all services
 docker compose ps
 
+# Database access
+docker exec -it postgres psql -U agent -d agent
+
 # Stop and clean up
 docker compose down
 
 # Note: All builds use UV package manager with pyproject.toml
 # UV provides 10-100x faster dependency resolution than pip
 # All import paths fixed and working in Docker environment
+# PostgreSQL "agent" database created automatically
 ```
 
 ### Development Commands (CLEAN ARCHITECTURE)
@@ -305,6 +318,21 @@ bash tests/test_mcp_python_executor.sh
 - Environment variables for service URLs
 - Docker networking for internal communication
 - Health check endpoints for monitoring
+
+### Service Initialization
+- All services in main.py initialized with repository dependencies
+- OrchestratorService, AgentService, TaskService, ConversationService operational
+- Dependency injection pattern with RedisRepository
+
+### MCP Client Configuration
+- **Important**: Do not use unsupported parameters like `prefix`
+- Proper initialization: `mcp_client = MCPClient(server_params=...)`
+- Both web search and Python executor servers accessible via HTTP/SSE
+
+### Database Configuration
+- PostgreSQL "agent" database created automatically
+- Connection string: `postgresql://agent:agentpass123@postgres:5432/agent`
+- Async connection pooling with asyncpg
 
 ### Feature Flags (Future)
 - Environment-based configuration

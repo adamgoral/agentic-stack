@@ -95,8 +95,7 @@ class ResearchAgent:
         
         try:
             servers["web_search"] = MCPServerSSE(
-                url=web_search_url, 
-                prefix="search_"
+                url=web_search_url
             )
             logger.info(f"Connected to web search MCP server at {web_search_url}")
         except Exception as e:
@@ -105,8 +104,7 @@ class ResearchAgent:
             alt_url = "http://localhost:3001/sse" if is_docker else "http://mcp-web-search:3001/sse"
             try:
                 servers["web_search"] = MCPServerSSE(
-                    url=alt_url, 
-                    prefix="search_"
+                    url=alt_url
                 )
                 logger.info(f"Connected to web search MCP server at {alt_url} (fallback)")
             except Exception as e2:

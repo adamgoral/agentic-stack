@@ -83,7 +83,7 @@ class OrchestratorAgent:
         # Web search server (SSE)
         web_search_url = "http://mcp-web-search:3001/sse" if is_docker else "http://localhost:3001/sse"
         try:
-            servers["web_search"] = MCPServerSSE(url=web_search_url, prefix="search_")
+            servers["web_search"] = MCPServerSSE(url=web_search_url)
             logger.info(f"Connected to web search MCP server at {web_search_url}")
         except Exception as e:
             logger.warning(f"Could not connect to web search server: {e}")

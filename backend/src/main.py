@@ -15,6 +15,12 @@ from src.api.v1.endpoints import (
 )
 from src.core import Settings, get_settings, setup_logging, setup_monitoring
 from src.infrastructure.persistence import RedisRepository
+from src.application.services import (
+    AgentService,
+    TaskService,
+    ConversationService,
+    OrchestratorService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +42,15 @@ def create_application(settings: Settings) -> FastAPI:
         await redis_repo.connect()
         app.state.redis_repo = redis_repo
         
-        # Initialize services (placeholder - will be implemented)
-        # app.state.agent_service = AgentService(...)
-        # app.state.task_service = TaskService(...)
-        # app.state.conversation_service = ConversationService(...)
-        # app.state.orchestrator_service = OrchestratorService(...)
+        # Initialize services with repositories
+        app.state.agent_service = AgentService(agent_repository=redis_repo)
+        app.state.task_service = TaskService(task_repository=redis_repo)
+        app.state.conversation_service = ConversationService(conversation_repository=redis_repo)
+        app.state.orchestrator_service = OrchestratorService(
+            agent_service=app.state.agent_service,
+            task_service=app.state.task_service,
+            conversation_service=app.state.conversation_service,
+        )
         
         logger.info("Application startup complete")
         

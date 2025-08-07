@@ -4,16 +4,16 @@
 
 ### Microservices Pattern
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   Backend    │────▶│    Redis    │
-│  (Next.js)  │HTTP │  (FastAPI)   │     │   (State)   │
-│ +CopilotKit │     │   AG-UI      │     │             │
-└─────────────┘     └──────────────┘     └─────────────┘
-        │                   │
-        │           ┌───────┴────────┐
-        ▼           ▼                ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ /api/copilot │  │  MCP Servers │  │  A2A Agents  │
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Frontend  │────▶│   Backend    │────▶│    Redis    │     │  PostgreSQL │
+│  (Next.js)  │HTTP │  (FastAPI)   │     │   (State)   │     │  (Database) │
+│ +CopilotKit │     │   AG-UI      │     │             │     │   "agent"   │
+└─────────────┘     └──────────────┘     └─────────────┘     └─────────────┘
+        │                   │                                         │
+        │           ┌───────┴────────┐                              │
+        ▼           ▼                ▼                              │
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│ /api/copilot │  │  MCP Servers │  │  A2A Agents  │◄─────────────┘
 │   (proxy)    │  │   (Tools)    │  │  (Workers)   │
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
@@ -25,14 +25,15 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - `backend/protocols/a2a_manager.py`: Manages A2A communication
 - `backend/protocols/ag_ui_handler.py`: AG-UI message formatting and validation
 - `backend/main.py`: AG-UI endpoint handlers
-- `backend/agents/orchestrator.py`: MCP client connections
+- `backend/agents/orchestrator.py`: MCP client connections (Note: prefix parameter removed)
 - `frontend/app/api/copilotkit/route.ts`: CopilotKit to AG-UI proxy
 - `frontend/components/providers/CopilotProvider.tsx`: UI integration
 
 ### 2. Dependency Injection
 - Use of `StateDeps` for AG-UI state management
-- Redis client passed as dependency
+- Redis client passed as dependency via RedisRepository pattern
 - MCP servers registered as toolsets
+- Services initialized with repository dependencies in main.py
 
 ### 3. Event Streaming
 - Server-Sent Events for real-time updates
@@ -43,6 +44,7 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - Redis-based context store
 - Context IDs for conversation continuity
 - Message history management
+- PostgreSQL for persistent data storage
 
 ## Component Relationships
 
@@ -54,6 +56,7 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
   - Result aggregation
   - State management
 - **Protocols Used**: All three (A2A, AG-UI, MCP)
+- **Services**: OrchestratorService with proper dependency injection
 
 ### Specialized Agents
 - **Research Agent**: Information gathering via MCP web search
@@ -61,6 +64,7 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - **Analytics Agent**: Data analysis using built-in Python capabilities
 - **Communication**: A2A protocol with orchestrator
 - **Pattern**: All agents follow identical implementation structure for consistency
+- **Scripts**: Consolidated in /backend/scripts/ directory
 
 ### MCP Servers
 - **Python Executor**: Sandboxed code execution (Port 3002)
@@ -69,6 +73,7 @@ Each protocol (A2A, AG-UI, MCP) has dedicated adapters:
 - **Implementation**: FastAPI servers with SSE endpoints at `/sse`
 - **Tool Execution**: HTTP POST to `/tools/{tool_name}`
 - **Health Monitoring**: GET `/health` endpoints
+- **Configuration**: No unsupported parameters (e.g., prefix removed)
 
 ## Critical Implementation Paths
 
@@ -83,6 +88,7 @@ User (CopilotKit UI) → /api/copilotkit → AgnoAgent → AG-UI Endpoint
 ```python
 StateDeps[AppState] → Redis Storage → Context Persistence
 → Message History → Conversation Continuity
+PostgreSQL → Persistent Data → Database Transactions
 ```
 
 ### 3. Error Handling
@@ -96,10 +102,11 @@ StateDeps[AppState] → Redis Storage → Context Persistence
 - Stateless backend services
 - Redis for shared state
 - Load balancer ready architecture
+- PostgreSQL for persistent data
 
 ### Vertical Scaling
 - Async/await for concurrent operations
-- Connection pooling for Redis
+- Connection pooling for Redis and PostgreSQL
 - Lazy loading of MCP servers
 
 ## Security Patterns
@@ -131,7 +138,7 @@ agentic-stack/
 │   │   │   └── queries/       # Query handlers (CQRS ready)
 │   │   ├── infrastructure/    # Infrastructure layer - external integrations
 │   │   │   ├── agents/        # Agent implementations with task manager
-│   │   │   ├── mcp/          # MCP server integrations
+│   │   │   ├── mcp/          # MCP server integrations (fixed: no prefix param)
 │   │   │   ├── persistence/   # Redis repositories with base patterns
 │   │   │   └── protocols/     # A2A, AG-UI protocol adapters
 │   │   ├── api/               # API layer - REST endpoints
@@ -150,7 +157,7 @@ agentic-stack/
 │   │   ├── unit/             # Fast, isolated unit tests
 │   │   ├── integration/      # Service integration tests
 │   │   └── e2e/             # End-to-end system tests
-│   ├── main.py               # Backward compatibility layer
+│   ├── main.py               # Backward compatibility layer with service init
 │   └── pyproject.toml        # Modern Python package configuration (UV)
 ├── frontend/                  # Next.js 14+ application
 │   ├── app/                 # App router with TypeScript
@@ -182,7 +189,7 @@ agentic-stack/
 #### Application Layer (src/application/)
 - **Purpose**: Use case orchestration
 - **Contents**:
-  - Application services (OrchestratorService, AgentService, etc.)
+  - Application services (OrchestratorService, AgentService, TaskService, ConversationService)
   - DTOs and mappers
   - Command/Query handlers (CQRS pattern ready)
 - **Dependencies**: Domain layer only
@@ -191,8 +198,8 @@ agentic-stack/
 - **Purpose**: External system integrations
 - **Contents**:
   - Agent implementations
-  - MCP server clients
-  - Redis repositories
+  - MCP server clients (properly configured without unsupported params)
+  - Redis repositories with RedisRepository pattern
   - Protocol implementations
 - **Dependencies**: Application and Domain layers
 
@@ -237,6 +244,12 @@ agentic-stack/
 8. Configure health checks for service monitoring
 9. All 9 services build successfully with optimized layers
 
+### Database Integration
+- **PostgreSQL**: "agent" database created and operational
+- **Connection Management**: Async pooling with asyncpg
+- **Repository Pattern**: Abstract database operations
+- **Migrations**: Alembic ready for schema versioning
+
 ## Architectural Patterns
 
 ### File Organization Strategy (Clean Architecture)
@@ -254,6 +267,20 @@ agentic-stack/
 - **Client Access**: `redis_pool = redis_repo.client` for actual Redis operations
 - **Abstraction Layer**: Repository pattern abstracts Redis-specific details
 - **Error Handling**: Centralized connection error handling and retry logic
+
+### Service Initialization Pattern
+- **Dependency Injection**: Services receive dependencies via constructor
+- **Repository Pattern**: All services use repository abstractions
+- **Lazy Loading**: Services initialized only when needed
+- **Health Checks**: Each service exposes health status
+- **Graceful Shutdown**: Proper cleanup on service termination
+
+### MCP Client Configuration Pattern
+- **Proper Parameters**: Only use documented MCP client parameters
+- **No Unsupported Options**: Removed prefix parameter that caused errors
+- **HTTP/SSE Transport**: Consistent transport layer for all MCP connections
+- **Error Recovery**: Fallback mechanisms for MCP server failures
+- **Health Monitoring**: Regular health checks on MCP endpoints
 
 ### Package Management Strategy
 - Backend uses UV + pyproject.toml for modern Python packaging

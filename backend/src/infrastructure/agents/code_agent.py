@@ -104,8 +104,7 @@ class CodeAgent:
         
         try:
             servers["python_executor"] = MCPServerSSE(
-                url=python_executor_url, 
-                prefix="exec_"
+                url=python_executor_url
             )
             logger.info(f"Connected to Python executor MCP server at {python_executor_url}")
         except Exception as e:
@@ -114,8 +113,7 @@ class CodeAgent:
             alt_url = "http://localhost:3002/sse" if is_docker else "http://mcp-python-executor:3002/sse"
             try:
                 servers["python_executor"] = MCPServerSSE(
-                    url=alt_url, 
-                    prefix="exec_"
+                    url=alt_url
                 )
                 logger.info(f"Connected to Python executor MCP server at {alt_url} (fallback)")
             except Exception as e2:
