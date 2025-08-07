@@ -142,13 +142,14 @@ agentic-stack/
 │   │       ├── config.py      # Pydantic Settings configuration
 │   │       ├── logging.py     # Structured logging setup
 │   │       └── monitoring.py  # OpenTelemetry observability
+│   ├── scripts/               # Agent startup scripts (Clean Architecture)
+│   │   ├── run_research_agent.py  # Research agent service launcher
+│   │   ├── run_code_agent.py      # Code agent service launcher
+│   │   └── run_analytics_agent.py # Analytics agent service launcher
 │   ├── tests/                 # Comprehensive test organization
 │   │   ├── unit/             # Fast, isolated unit tests
 │   │   ├── integration/      # Service integration tests
 │   │   └── e2e/             # End-to-end system tests
-│   ├── run_research_agent.py  # Simplified agent startup scripts
-│   ├── run_code_agent.py      # Direct execution from backend root
-│   ├── run_analytics_agent.py # No complex paths needed
 │   ├── main.py               # Backward compatibility layer
 │   └── pyproject.toml        # Modern Python package configuration (UV)
 ├── frontend/                  # Next.js 14+ application
@@ -235,3 +236,27 @@ agentic-stack/
 7. Switch to non-root user for container security
 8. Configure health checks for service monitoring
 9. All 9 services build successfully with optimized layers
+
+## Architectural Patterns
+
+### File Organization Strategy (Clean Architecture)
+- **Scripts Directory**: All agent startup scripts in `/backend/scripts/` for clear separation
+- **Source Code**: Layered architecture in `/backend/src/` with proper domain boundaries
+- **Test Organization**: Structured tests in `/backend/tests/` with unit/integration/e2e directories
+- **Documentation**: Centralized in `/docs/` directory for easy maintenance
+- **No Script Duplication**: Single location for each type of executable script
+- **Clean Boundaries**: Scripts reference source code but are separate from implementation
+
+### RedisRepository Pattern (Production Implementation)
+- **Consistent Connection Management**: All Redis connections use RedisRepository class
+- **Proper Initialization**: `redis_repo = RedisRepository(redis_url=args.redis_url)`
+- **Connection Lifecycle**: `await redis_repo.connect()` for setup
+- **Client Access**: `redis_pool = redis_repo.client` for actual Redis operations
+- **Abstraction Layer**: Repository pattern abstracts Redis-specific details
+- **Error Handling**: Centralized connection error handling and retry logic
+
+### Package Management Strategy
+- Backend uses UV + pyproject.toml for modern Python packaging
+- Frontend uses npm + package.json for Node.js dependencies
+- Each component self-contained with its own dependency management
+- No shared dependencies between frontend and backend

@@ -17,7 +17,7 @@ from src.infrastructure.agents.analytics_agent import AnalyticsAgent
 from src.infrastructure.agents.agent_task_manager import task_manager
 from src.infrastructure.protocols.a2a_manager import A2AManager
 from src.infrastructure.persistence.context_store import ContextStore
-from src.infrastructure.persistence.redis_repository import create_redis_pool
+from src.infrastructure.persistence.redis_repository import RedisRepository
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -191,7 +191,9 @@ async def main():
     logger.info("Initializing Analytics Agent...")
 
     # Create Redis connection
-    redis_pool = await create_redis_pool(args.redis_url)
+    redis_repo = RedisRepository(redis_url=args.redis_url)
+    await redis_repo.connect()
+    redis_pool = redis_repo.client
 
     # Initialize A2A manager
     a2a_manager = A2AManager(timeout=30)

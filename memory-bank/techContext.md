@@ -254,10 +254,10 @@ uv pip install -e ".[dev]"
 # Run the main orchestrator backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# Run individual agents with simplified startup scripts
-python run_research_agent.py    # Research agent on port 8001
-python run_code_agent.py        # Code agent on port 8002  
-python run_analytics_agent.py   # Analytics agent on port 8003
+# Run individual agents with organized startup scripts
+python scripts/run_research_agent.py    # Research agent on port 8001
+python scripts/run_code_agent.py        # Code agent on port 8002  
+python scripts/run_analytics_agent.py   # Analytics agent on port 8003
 
 # Code quality tools (CONFIGURED FOR PRODUCTION)
 ruff format .       # Format with production rules

@@ -7,17 +7,37 @@
 - All 9 services fully operational: Frontend, Orchestrator, 3 Agents, 2 MCP servers, PostgreSQL, Redis
 - Complete Clean Architecture implementation with DDD and SOLID principles
 - Modern Python package management with UV and pyproject.toml
-- Simplified agent startup scripts in backend root directory
+- Simplified agent startup scripts organized in /backend/scripts/
 - Centralized documentation in /docs directory
 - Proper test organization in /backend/tests with unit/integration/e2e structure
 - Docker Compose fully functional with all services running
 - Backend refactored into clean layers: src/api/, src/application/, src/core/, src/domain/, src/infrastructure/
 - Fixed import paths and Docker configurations
+- All agent run scripts properly consolidated and cleaned up
+- RedisRepository pattern implemented for proper connection management
 - System ready for production deployment
 
 ## Recent Changes
 
 ### Completed (Current Session - August 7, 2025)
+
+29. **Run Scripts Cleanup and Organization** (COMPLETED)
+    - Cleaned up duplicate run_ scripts across multiple locations
+    - Consolidated all agent startup scripts in /backend/scripts/:
+      - run_research_agent.py
+      - run_code_agent.py
+      - run_analytics_agent.py
+    - Removed duplicates from /backend/ root and /backend/src/infrastructure/agents/
+    - Updated Docker Compose configuration to use correct scripts/ path
+    - Fixed import issues in run scripts - changed from create_redis_pool to RedisRepository pattern
+    - RedisRepository pattern now used consistently: redis_repo = RedisRepository(redis_url), await redis_repo.connect()
+    - All Docker services now running successfully with Clean Architecture structure
+    - File organization now follows proper Clean Architecture principles:
+      - Scripts in dedicated /backend/scripts/ directory
+      - Source code in layered /backend/src/ structure
+      - Tests organized in /backend/tests/ with unit/integration/e2e structure
+    - Docker Compose services updated to mount correct script paths
+    - All agent services operational and properly configured
 
 28. **System Production Readiness Validation** (COMPLETED)
     - Verified all 9 services operational and healthy
@@ -381,19 +401,21 @@
 
 ## Next Steps
 
-### Production System - Ready for Deployment!
-The Agentic Stack is production-ready with enterprise architecture. To activate:
+### Production System - Ready for Deployment! ✅
+The Agentic Stack is production-ready with enterprise architecture and clean file organization. To activate:
 1. Add OpenAI/Anthropic API keys to `.env` file (see docs/API_KEYS_SETUP.md)
 2. Start all services: `docker compose up --build -d`
 3. Verify all 9 services running: `docker compose ps`
 4. Access frontend at http://localhost:3000/chat
 5. Test complex queries leveraging Clean Architecture and multi-agent coordination
+6. All agent scripts properly organized in /backend/scripts/ with RedisRepository pattern
 
 ### Production Deployment Options
 - **Kubernetes**: Clean Architecture layers ready for K8s deployment
 - **AWS ECS/Fargate**: Docker images optimized for cloud deployment
 - **CI/CD Integration**: pyproject.toml and test structure ready for pipelines
 - **Monitoring**: OpenTelemetry configured for production observability
+- **File Organization**: Script consolidation and Clean Architecture patterns deployment-ready
 
 ### Future Enhancements (Post-Production)
 
@@ -477,10 +499,18 @@ The Agentic Stack is production-ready with enterprise architecture. To activate:
 ### Production Readiness Lessons
 - **Enterprise Patterns**: Clean Architecture, DDD, and SOLID principles work excellently together
 - **Modern Python Stack**: UV + Ruff + pyproject.toml provides enterprise-grade development experience
-- **Simplified Operations**: Direct agent startup scripts eliminate complex path management
+- **Script Organization**: Dedicated /backend/scripts/ directory eliminates duplication and path confusion
+- **Repository Pattern**: RedisRepository class provides consistent connection management across services
 - **Quality Assurance**: Organized test structure (unit/integration/e2e) ensures system reliability
 - **Documentation Strategy**: Centralized docs in /docs directory improves maintainability
 - **Docker Optimization**: UV-based builds are 10-100x faster than traditional pip installations
+
+### File Organization Insights
+- **Script Consolidation**: Run scripts belong in /backend/scripts/, not scattered across directories
+- **Import Path Clarity**: Clean Architecture with src/ directory provides clear import boundaries
+- **No Duplication**: Each executable script should have one authoritative location
+- **Docker Integration**: Scripts directory properly mounted and referenced in Docker Compose
+- **Connection Patterns**: RedisRepository pattern eliminates create_redis_pool anti-pattern
 
 ### Enterprise Architecture Best Practices
 - **Clean Architecture**: Domain layer independent of infrastructure concerns
