@@ -13,11 +13,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.analytics_agent import AnalyticsAgent
-from agents.agent_task_manager import task_manager
-from protocols.a2a_manager import A2AManager
-from storage.context_store import ContextStore
-from storage.redis_config import create_redis_pool
+from src.infrastructure.agents.analytics_agent import AnalyticsAgent
+from src.infrastructure.agents.agent_task_manager import task_manager
+from src.infrastructure.protocols.a2a_manager import A2AManager
+from src.infrastructure.persistence.context_store import ContextStore
+from src.infrastructure.persistence.redis_repository import create_redis_pool
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn

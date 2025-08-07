@@ -67,7 +67,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -94,7 +94,7 @@ services:
       - mcp-web-search
     volumes:
       - ./backend:/app
-    command: python agents/run_research_agent.py --port 8001
+    command: python run_research_agent.py --port 8001
 
   code-agent:
     build:
@@ -113,7 +113,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: python agents/run_code_agent.py --port 8002
+    command: python run_code_agent.py --port 8002
 
   analytics-agent:
     build:
@@ -133,12 +133,12 @@ services:
       - postgres
     volumes:
       - ./backend:/app
-    command: python agents/run_analytics_agent.py --port 8003
+    command: python run_analytics_agent.py --port 8003
 
   # MCP Servers
   mcp-web-search:
     build:
-      context: ./backend/mcp_servers/web_search
+      context: ./backend/src/infrastructure/mcp/mcp_servers/web_search
       dockerfile: Dockerfile
     container_name: agentic-mcp-web-search
     ports:
@@ -154,7 +154,7 @@ services:
 
   mcp-python-executor:
     build:
-      context: ./backend/mcp_servers/python_executor
+      context: ./backend/src/infrastructure/mcp/mcp_servers/python_executor
       dockerfile: Dockerfile
     container_name: agentic-mcp-python-executor
     ports:
