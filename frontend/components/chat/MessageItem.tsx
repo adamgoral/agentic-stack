@@ -21,6 +21,16 @@ export default function MessageItem({ message }: MessageItemProps) {
     system: 'System',
   };
 
+  // Format time consistently to avoid hydration mismatch
+  const formatTime = (date: Date) => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`;
+  };
+
   return (
     <div className={roleStyles[message.role]}>
       <div className="flex items-start space-x-2">
@@ -29,8 +39,8 @@ export default function MessageItem({ message }: MessageItemProps) {
             <span className="text-xs font-semibold">
               {roleLabels[message.role]}
             </span>
-            <span className="text-xs opacity-60">
-              {message.timestamp.toLocaleTimeString()}
+            <span className="text-xs opacity-60" suppressHydrationWarning>
+              {formatTime(message.timestamp)}
             </span>
           </div>
           <div className="prose prose-sm dark:prose-invert max-w-none">

@@ -291,3 +291,9 @@ agentic-stack/
 - Frontend uses npm + package.json for Node.js dependencies
 - Each component self-contained with its own dependency management
 - No shared dependencies between frontend and backend
+
+### Frontend SSR/Hydration Pattern
+- **Consistent Rendering**: Server and client use identical time formatting patterns
+- **Hydration Safety**: useEffect for client-side updates to prevent mismatches
+- **Timezone Handling**: Consistent timezone usage between SSR and client hydration
+- **Error Prevention**: Proper patterns to avoid React hydration warnings

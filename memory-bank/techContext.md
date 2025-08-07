@@ -20,7 +20,7 @@
   - @copilotkit/runtime-client-gql: GraphQL client
   - @ag-ui/agno: AG-UI agent connector
 - **Tailwind CSS**: Styling with custom theme and animations
-- **React 18.3**: Latest React with concurrent features
+- **React 18.3**: Latest React with concurrent features (hydration-safe patterns implemented)
 - **react-markdown**: Markdown rendering in chat
 - **Prism.js**: Syntax highlighting for code blocks
 
