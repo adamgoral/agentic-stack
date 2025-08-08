@@ -51,7 +51,7 @@ export default function MessageItem({ message }: MessageItemProps) {
                   const inline = !match;
                   return !inline ? (
                     <SyntaxHighlighter
-                      style={oneDark as any}
+                      style={oneDark}
                       language={match[1]}
                       PreTag="div"
                     >

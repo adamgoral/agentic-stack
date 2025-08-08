@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { CopilotProvider } from '@/components/providers/CopilotProvider';
 import './globals.css';
@@ -13,7 +13,11 @@ export const metadata: Metadata = {
   description: 'A modern platform for orchestrating AI agents with AG-UI protocol support',
   keywords: ['AI', 'Agents', 'CopilotKit', 'AG-UI', 'Orchestration'],
   authors: [{ name: 'Agentic Stack Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#111827',
 };
 

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.v1.endpoints import (
     agents_router,
+    ag_ui_router,
     conversations_router,
     health_router,
     tasks_router,
@@ -86,6 +87,9 @@ def create_application(settings: Settings) -> FastAPI:
     app.include_router(agents_router, prefix=api_v1_prefix)
     app.include_router(tasks_router, prefix=api_v1_prefix)
     app.include_router(conversations_router, prefix=api_v1_prefix)
+    
+    # Include AG-UI router at root level (not under /api/v1)
+    app.include_router(ag_ui_router)
     
     @app.get("/")
     async def root():

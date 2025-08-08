@@ -1,21 +1,26 @@
 import {
   CopilotRuntime,
-  ExperimentalEmptyAdapter,
+  OpenAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
-import { AgnoAgent } from "@ag-ui/agno";
+import OpenAI from "openai";
 import { NextRequest } from "next/server";
 
-// Create the service adapter
-const serviceAdapter = new ExperimentalEmptyAdapter();
+// Create OpenAI client instance
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-build",
+});
 
-// Create the runtime with the AG-UI agent
+// Create a service adapter using the OpenAI client
+const serviceAdapter = new OpenAIAdapter({ openai });
+
+// Create the runtime with remote actions for AG-UI
 const runtime = new CopilotRuntime({
-  agents: {
-    orchestrator: new AgnoAgent({
-      url: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/ag-ui",
-    }),
-  },
+  remoteActions: [
+    {
+      url: process.env.NEXT_PUBLIC_BACKEND_URL + "/ag-ui" || "http://localhost:8000/ag-ui",
+    },
+  ],
 });
 
 // Export the POST handler for the API route
